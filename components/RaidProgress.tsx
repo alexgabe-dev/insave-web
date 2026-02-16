@@ -14,21 +14,21 @@ const RaidProgress: React.FC<RaidProgressProps> = ({ data, setView }) => {
     ? data.filter(r => r.featured).slice(0, 3)
     : data.slice(0, 3);
     
-  const hasMoreRaids = data.length > 3;
+  const canOpenAllProgress = data.length > 0;
 
   return (
-    <section id="progress" className="py-32 bg-[#050505] relative overflow-hidden">
+    <section id="progress" className="py-20 md:py-32 bg-[#050505] relative overflow-hidden">
         {/* Dekoratív választóvonal */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-64 bg-gradient-to-b from-[#c8aa6e]/40 to-transparent"></div>
         
-        <div className="container mx-auto px-6 relative z-10 max-w-7xl">
+        <div className="container mx-auto px-4 md:px-6 relative z-10 max-w-7xl">
             <FadeInSection>
-                <div className="text-center mb-24">
+                <div className="text-center mb-14 md:mb-24">
                     <div className="inline-flex items-center gap-2 text-[#c8aa6e] mb-4">
                         <Swords size={20} />
-                        <span className="cinzel-font text-sm font-bold tracking-[0.4em] uppercase">Kiemelt Hadjáratok</span>
+                        <span className="cinzel-font text-[10px] md:text-sm font-bold tracking-[0.2em] md:tracking-[0.4em] uppercase">Kiemelt Hadjáratok</span>
                     </div>
-                    <h2 className="text-5xl md:text-7xl font-black cinzel-font text-white mb-6 uppercase tracking-tighter">
+                    <h2 className="text-3xl md:text-7xl font-black cinzel-font text-white mb-4 md:mb-6 uppercase tracking-tighter">
                       Raid <span className="text-[#c8aa6e]">Progress</span>
                     </h2>
                     <div className="w-32 h-px bg-gradient-to-r from-transparent via-[#c8aa6e] to-transparent mx-auto"></div>
@@ -38,7 +38,7 @@ const RaidProgress: React.FC<RaidProgressProps> = ({ data, setView }) => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-10">
                     {featuredRaids.map((raid, idx) => (
                         <div key={idx} className="group glass-card fantasy-border-accent flex flex-col hover-glow transition-all duration-700 h-full">
-                            <div className="h-56 relative overflow-hidden border-b border-white/5">
+                            <div className="h-48 md:h-56 relative overflow-hidden border-b border-white/5">
                                 <img 
                                     src={raid.img} 
                                     alt={raid.name} 
@@ -59,8 +59,8 @@ const RaidProgress: React.FC<RaidProgressProps> = ({ data, setView }) => {
                                 )}
                             </div>
 
-                            <div className="p-8 flex-grow flex flex-col bg-[#0a0a0b]/40">
-                                <h3 className={`text-2xl font-bold cinzel-font mb-6 tracking-wide leading-tight ${raid.status === 'Progress' ? 'text-red-200' : 'text-white'}`}>
+                            <div className="p-5 md:p-8 flex-grow flex flex-col bg-[#0a0a0b]/40">
+                                <h3 className={`text-xl md:text-2xl font-bold cinzel-font mb-4 md:mb-6 tracking-wide leading-tight ${raid.status === 'Progress' ? 'text-red-200' : 'text-white'}`}>
                                     {raid.name}
                                 </h3>
 
@@ -68,7 +68,7 @@ const RaidProgress: React.FC<RaidProgressProps> = ({ data, setView }) => {
                                     <div className="flex justify-between items-end mb-4">
                                         <div className="flex flex-col">
                                             <span className="text-[10px] text-neutral-500 uppercase tracking-widest font-bold mb-1">Bossok</span>
-                                            <span className={`text-3xl cinzel-font font-black ${raid.status === 'Progress' ? 'text-red-500' : 'text-[#c8aa6e]'}`}>
+                                            <span className={`text-2xl md:text-3xl cinzel-font font-black ${raid.status === 'Progress' ? 'text-red-500' : 'text-[#c8aa6e]'}`}>
                                                 {raid.current} <span className="text-neutral-600 font-serif text-sm">/ {raid.total}</span>
                                             </span>
                                         </div>
@@ -94,14 +94,14 @@ const RaidProgress: React.FC<RaidProgressProps> = ({ data, setView }) => {
                     ))}
                 </div>
 
-                {hasMoreRaids && (
-                  <div className="mt-20 flex justify-center">
+                {canOpenAllProgress && (
+                  <div className="mt-12 md:mt-20 flex justify-center">
                     <button 
                       onClick={() => setView('all-progress')}
-                      className="group relative flex items-center gap-4 px-12 py-5 bg-transparent border border-[#c8aa6e]/30 hover:border-[#c8aa6e] transition-all duration-500 rounded-sm overflow-hidden"
+                      className="group relative flex items-center gap-3 md:gap-4 px-6 md:px-12 py-3 md:py-5 bg-transparent border border-[#c8aa6e]/30 hover:border-[#c8aa6e] transition-all duration-500 rounded-sm overflow-hidden"
                     >
                       <div className="absolute inset-0 bg-[#c8aa6e]/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                      <span className="cinzel-font font-bold text-[11px] text-[#c8aa6e] uppercase tracking-[0.5em] group-hover:text-white transition-colors">További eredményeink</span>
+                      <span className="cinzel-font font-bold text-[10px] md:text-[11px] text-[#c8aa6e] uppercase tracking-[0.2em] md:tracking-[0.5em] group-hover:text-white transition-colors">További eredményeink</span>
                       <ChevronRight size={16} className="text-[#c8aa6e] group-hover:translate-x-1 group-hover:text-white transition-all" />
                       
                       {/* Dekoratív csillogás gombnyomásra/lebegésre */}
@@ -116,3 +116,4 @@ const RaidProgress: React.FC<RaidProgressProps> = ({ data, setView }) => {
 };
 
 export default RaidProgress;
+

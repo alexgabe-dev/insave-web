@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { Shield, ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
+import insaneLogo from '../logo/insane-logo.svg';
 
 interface FooterProps {
   setView?: (view: any) => void;
@@ -10,8 +11,8 @@ const Footer: React.FC<FooterProps> = ({ setView }) => {
   return (
     <footer className="bg-[#020202] py-16 border-t border-[#1a1a1a] relative group">
       <div className="container mx-auto px-4 text-center">
-        <div className="flex justify-center mb-6 opacity-30">
-            <Shield size={24} className="text-[#c8aa6e]" />
+        <div className="flex justify-center mb-6">
+          <img src={insaneLogo} alt="Insane logo" className="w-20 h-20 object-contain brightness-0 invert" />
         </div>
         <h4 className="cinzel-font text-2xl text-[#c8aa6e] mb-4 tracking-[0.5em] font-bold opacity-80">INSANE</h4>
         <p className="text-neutral-600 text-sm mb-8 font-serif italic">

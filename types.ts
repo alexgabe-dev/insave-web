@@ -30,7 +30,12 @@ export interface NavItem {
   href: string;
 }
 
-export type RaidKey = 'MC' | 'BWL' | 'AQ40' | 'Naxx' | 'K40';
+export type RaidKey = string;
+
+export interface RaidConsumableSettings {
+  required?: boolean;
+  note?: string;
+}
 
 export interface ConsumableItem {
   name: string;
@@ -39,9 +44,10 @@ export interface ConsumableItem {
   category: string;
   duration?: string;
   notes?: string;
+  raidSettings?: Partial<Record<RaidKey, RaidConsumableSettings>>;
 }
 
 export interface RoleConsumables {
-  role: 'Tank' | 'Healer' | 'Melee' | 'Caster' | 'Hunter';
+  role: 'Tank' | 'Healer' | 'Melee' | 'Caster' | 'Hunter' | 'Ranged';
   items: ConsumableItem[];
 }

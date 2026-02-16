@@ -28,7 +28,7 @@ const AllProgress: React.FC<AllProgressProps> = ({ data, setView }) => {
             <History size={48} className="text-[#c8aa6e]/40" strokeWidth={1} />
           </div>
           <h1 className="text-5xl md:text-7xl font-black cinzel-font text-white mb-6 tracking-tighter uppercase">
-            Klán <span className="text-[#c8aa6e]">Történelem</span>
+            Klán <span className="text-[#c8aa6e]">Eredmények</span>
           </h1>
           <p className="text-neutral-500 max-w-2xl mx-auto font-serif text-xl italic leading-relaxed">
             Az INSANE guild összesített haladása és diadalai a Turtle WoW szerverén.<br/>

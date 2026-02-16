@@ -1,22 +1,43 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { RaidKey } from '../types';
-import { Shield, Heart, Sword, Wand2, Target, Check, FlaskConical, Timer, Info } from 'lucide-react';
+import { Shield, Heart, Sword, Wand2, Target, ScrollText, Check, FlaskConical, Timer, X } from 'lucide-react';
 import FadeInSection from './FadeInSection';
+import { getConsumableIcon } from '../utils/consumableIcons';
 
-const RAIDS: RaidKey[] = ['MC', 'BWL', 'AQ40', 'Naxx', 'K40'];
+const DEFAULT_RAIDS: RaidKey[] = ['MC', 'BWL', 'AQ40', 'Naxx', 'K40'];
 
 const Consumables: React.FC<{ data: any[] }> = ({ data }) => {
   const [activeRoleIdx, setActiveRoleIdx] = useState(0);
   const [activeRaid, setActiveRaid] = useState<RaidKey>('Naxx');
+  const raidOptions = Array.from(
+    new Set([
+      ...DEFAULT_RAIDS,
+      ...data.flatMap((roleData: any) => (roleData.items || []).flatMap((item: any) => item.raids || []))
+    ])
+  );
+  useEffect(() => {
+    if (raidOptions.length > 0 && !raidOptions.includes(activeRaid)) {
+      setActiveRaid(raidOptions[0]);
+    }
+  }, [activeRaid, raidOptions.join('|')]);
 
-  const selectedRole = data[activeRoleIdx];
+  const visibleRoles = (data || []).filter((roleData: any) => roleData.role !== 'Raid Specific');
+  const selectedRole = visibleRoles[activeRoleIdx];
+  const visibleItems = (selectedRole?.items || []).filter((item: any) => item.raids.includes(activeRaid));
+  const sortedItems = [...visibleItems].sort((a: any, b: any) => {
+    return String(a.name || '').localeCompare(String(b.name || ''));
+  });
+  const requiredItems = sortedItems.filter((item: any) => !!item?.raidSettings?.[activeRaid]?.required);
+  const optionalItems = sortedItems.filter((item: any) => !item?.raidSettings?.[activeRaid]?.required);
 
   const roleIcons = {
     Tank: <Shield size={24} />,
     Healer: <Heart size={24} />,
     Melee: <Sword size={24} />,
     Caster: <Wand2 size={24} />,
-    Hunter: <Target size={24} />
+    Hunter: <Target size={24} />,
+    Ranged: <Target size={24} />,
+    'Raid Specific': <ScrollText size={24} />
   };
 
   return (
@@ -41,7 +62,7 @@ const Consumables: React.FC<{ data: any[] }> = ({ data }) => {
                 <div>
                     <h3 className="text-[10px] cinzel-font font-bold text-neutral-600 uppercase tracking-[0.3em] mb-6">Select Role</h3>
                     <div className="flex flex-col gap-3">
-                        {data.map((roleData, idx) => (
+                        {visibleRoles.map((roleData, idx) => (
                         <button
                             key={roleData.role}
                             onClick={() => setActiveRoleIdx(idx)}
@@ -63,7 +84,7 @@ const Consumables: React.FC<{ data: any[] }> = ({ data }) => {
                 <div>
                     <h3 className="text-[10px] cinzel-font font-bold text-neutral-600 uppercase tracking-[0.3em] mb-6">Active Raid</h3>
                     <div className="grid grid-cols-2 gap-2">
-                        {RAIDS.map((raid) => (
+                        {raidOptions.map((raid) => (
                         <button
                             key={raid}
                             onClick={() => setActiveRaid(raid)}
@@ -88,19 +109,97 @@ const Consumables: React.FC<{ data: any[] }> = ({ data }) => {
                     </h4>
                 </div>
 
+                {sortedItems.length === 0 && (
+                  <div className="p-8 border border-white/5 bg-black/20 text-sm text-neutral-500">
+                    Nincs bekapcsolt consumable erre a raidre ebben a szerepkorben.
+                  </div>
+                )}
+                {requiredItems.length > 0 && (
+                  <>
+                    <div className="mb-4 p-3 border border-red-500/30 bg-red-950/10 rounded">
+                      <p className="text-[10px] uppercase tracking-widest font-bold text-red-300">Kotelezo Consumables</p>
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-4 mb-8">
+                      {requiredItems.map((item: any, idx: number) => {
+                        const isRequired = true;
+                        const raidNote = item?.raidSettings?.[activeRaid]?.note;
+                        return (
+                          <div
+                            key={`required-${item.name}-${idx}`}
+                            className="group p-6 border transition-all duration-700 relative overflow-hidden bg-red-950/10 border-red-500/70 hover:border-red-400 shadow-xl"
+                          >
+                            <div className="absolute top-0 right-0 p-2 bg-red-900/30 text-red-400 border-l border-b border-red-500/40">
+                              <X size={14} />
+                            </div>
+                            <div className="flex flex-col h-full">
+                              <div className="flex items-center gap-3 mb-4">
+                                <div className="p-1 rounded-sm bg-neutral-900/80 border border-white/10">
+                                  <img
+                                    src={getConsumableIcon(item.name)}
+                                    alt={item.name}
+                                    className="w-8 h-8 object-cover rounded-[2px]"
+                                    loading="lazy"
+                                  />
+                                </div>
+                                <span className="text-[9px] font-bold cinzel-font tracking-widest text-red-300/90 uppercase">
+                                  {item.category}
+                                </span>
+                              </div>
+
+                              <h5 className="text-lg font-bold cinzel-font mb-2 text-white">
+                                {item.name}
+                              </h5>
+
+                              <p className="text-sm text-neutral-300 font-serif mb-6 leading-relaxed italic flex-grow">
+                                {item.effect}
+                              </p>
+                              {raidNote && (
+                                <p className="text-xs text-neutral-200 mb-4 border-l-2 border-red-400/60 pl-3">
+                                  {raidNote}
+                                </p>
+                              )}
+
+                              <div className="flex items-center justify-between pt-4 border-t border-red-400/20">
+                                {item.duration && (
+                                  <div className="flex items-center gap-1.5 text-[9px] font-bold text-neutral-400 uppercase tracking-widest">
+                                    <Timer size={12} className="text-neutral-600" />
+                                    {item.duration}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+
+                {optionalItems.length > 0 && (
+                  <div className="mb-4 p-3 border border-white/10 bg-black/20 rounded">
+                    <p className="text-[10px] uppercase tracking-widest font-bold text-neutral-400">Ajanlott Consumables</p>
+                  </div>
+                )}
+
                 <div className="grid md:grid-cols-2 gap-4">
-                    {selectedRole.items.map((item: any, idx: number) => {
-                    const isRequired = item.raids.includes(activeRaid);
+                    {optionalItems.map((item: any, idx: number) => {
+                    const isRequired = !!item?.raidSettings?.[activeRaid]?.required;
+                    const raidNote = item?.raidSettings?.[activeRaid]?.note;
                     return (
                         <div 
-                        key={idx}
+                        key={`optional-${item.name}-${idx}`}
                         className={`group p-6 border transition-all duration-700 relative overflow-hidden ${
-                            isRequired 
-                            ? 'bg-[#0f0f10] border-white/10 hover:border-[#c8aa6e]/40 shadow-xl' 
-                            : 'bg-black/40 border-white/5 opacity-40 grayscale pointer-events-none'
+                            isRequired
+                            ? 'bg-red-950/10 border-red-500/70 hover:border-red-400 shadow-xl'
+                            : 'bg-[#0f0f10] border-white/10 hover:border-[#c8aa6e]/40 shadow-xl'
                         }`}
                         >
                         {isRequired && (
+                            <div className="absolute top-0 right-0 p-2 bg-red-900/30 text-red-400 border-l border-b border-red-500/40">
+                                <X size={14} />
+                            </div>
+                        )}
+                        {!isRequired && (
                             <div className="absolute top-0 right-0 p-2 bg-[#c8aa6e]/10 text-[#c8aa6e] border-l border-b border-[#c8aa6e]/20">
                                 <Check size={14} />
                             </div>
@@ -108,21 +207,31 @@ const Consumables: React.FC<{ data: any[] }> = ({ data }) => {
                         
                         <div className="flex flex-col h-full">
                             <div className="flex items-center gap-3 mb-4">
-                                <div className={`p-2 rounded-sm ${isRequired ? 'bg-[#c8aa6e]/10 text-[#c8aa6e]' : 'bg-neutral-900 text-neutral-600'}`}>
-                                <FlaskConical size={18} />
+                                <div className="p-1 rounded-sm bg-neutral-900/80 border border-white/10">
+                                <img
+                                  src={getConsumableIcon(item.name)}
+                                  alt={item.name}
+                                  className="w-8 h-8 object-cover rounded-[2px]"
+                                  loading="lazy"
+                                />
                                 </div>
                                 <span className="text-[9px] font-bold cinzel-font tracking-widest text-[#c8aa6e]/60 uppercase">
                                 {item.category}
                                 </span>
                             </div>
 
-                            <h5 className={`text-lg font-bold cinzel-font mb-2 group-hover:text-[#c8aa6e] transition-colors ${isRequired ? 'text-white' : 'text-neutral-500'}`}>
+                            <h5 className="text-lg font-bold cinzel-font mb-2 group-hover:text-[#c8aa6e] transition-colors text-white">
                                 {item.name}
                             </h5>
                             
                             <p className="text-sm text-neutral-400 font-serif mb-6 leading-relaxed italic flex-grow">
                                 {item.effect}
                             </p>
+                            {raidNote && (
+                                <p className="text-xs text-neutral-300 mb-4 border-l-2 border-[#c8aa6e]/50 pl-3">
+                                  {raidNote}
+                                </p>
+                            )}
 
                             <div className="flex items-center justify-between pt-4 border-t border-white/5">
                                 {item.duration && (

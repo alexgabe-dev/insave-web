@@ -7,6 +7,7 @@ import Consumables from './components/Consumables';
 import SrSystem from './components/SrSystem';
 import RaidProgress from './components/RaidProgress';
 import AllProgress from './components/AllProgress';
+import InfoPage from './components/InfoPage';
 import Rules from './components/Rules';
 import LootSystem from './components/LootSystem';
 import Guides from './components/Guides';
@@ -29,14 +30,152 @@ import {
   DiscordAuthState 
 } from './auth/discord';
 
+type View = 'home' | 'tactics' | 'consumables' | 'epgp' | 'sr' | 'guides' | 'info' | 'admin' | 'all-progress';
+
+const viewToPath: Record<View, string> = {
+  home: '/home',
+  tactics: '/tacs',
+  consumables: '/consuk',
+  epgp: '/epgp',
+  sr: '/sr',
+  guides: '/guides',
+  info: '/infok',
+  admin: '/admin',
+  'all-progress': '/progress',
+};
+
+const pathToView = (pathname: string): View => {
+  const path = pathname.toLowerCase();
+  if (path === '/' || path === '/home') return 'home';
+  if (path === '/tacs' || path === '/tactics') return 'tactics';
+  if (path === '/consuk' || path === '/consumables') return 'consumables';
+  if (path === '/epgp') return 'epgp';
+  if (path === '/sr') return 'sr';
+  if (path === '/guides' || path === '/hasznos') return 'guides';
+  if (path === '/infok' || path === '/info') return 'info';
+  if (path === '/admin') return 'admin';
+  if (path === '/progress' || path === '/all-progress') return 'all-progress';
+  return 'home';
+};
+
+const CONSUMABLES_STORAGE_KEY = 'insave_consumables_v2';
+const TACTICS_STORAGE_KEY = 'insave_tactics_v1';
+const PROGRESS_STORAGE_KEY = 'insave_progress_v1';
+const HERO_STORAGE_KEY = 'insave_hero_v1';
+const OFFICERS_STORAGE_KEY = 'insave_officers_v1';
+const GUIDES_STORAGE_KEY = 'insave_guides_v1';
+
+const loadStoredConsumables = () => {
+  try {
+    const raw = localStorage.getItem(CONSUMABLES_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const loadStoredTactics = () => {
+  try {
+    const raw = localStorage.getItem(TACTICS_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const loadStoredProgress = () => {
+  try {
+    const raw = localStorage.getItem(PROGRESS_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const loadStoredHeroConfig = () => {
+  try {
+    const raw = localStorage.getItem(HERO_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const loadStoredOfficers = () => {
+  try {
+    const raw = localStorage.getItem(OFFICERS_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const loadStoredGuides = () => {
+  try {
+    const raw = localStorage.getItem(GUIDES_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const DEFAULT_HERO_CONFIG = {
+  title: "INSANE",
+  subtitle: "A Turtle WoW legelismertebb magyar PvE közössége.",
+  motto: "Fegyelem • Tudás • Győzelem",
+  mottoColor: "#a3a3a3",
+  showMotto: true,
+  bgType: 'video' as 'image' | 'video',
+  bgImage: "https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=2574&auto=format&fit=crop",
+  bgVideo: "https://assets.mixkit.co/videos/preview/mixkit-flying-over-a-snowy-mountain-range-4360-large.mp4",
+  bgOpacity: 50,
+  showProgressBar: true,
+  showProgressButton: true,
+  progressLabel: "NAXXRAMAS PROGRESS: 12 / 15",
+  progressValue: 80,
+  discordUrl: "https://discord.gg/your-invite-link"
+};
+
+const normalizeHeroConfig = (raw: any) => {
+  const value = raw || {};
+  const legacyShowProgress = typeof value.showProgress === 'boolean' ? value.showProgress : undefined;
+  const hasValidMottoColor = typeof value.mottoColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(value.mottoColor);
+  return {
+    ...DEFAULT_HERO_CONFIG,
+    ...value,
+    showProgressBar: typeof value.showProgressBar === 'boolean'
+      ? value.showProgressBar
+      : (legacyShowProgress ?? DEFAULT_HERO_CONFIG.showProgressBar),
+    showProgressButton: typeof value.showProgressButton === 'boolean'
+      ? value.showProgressButton
+      : (legacyShowProgress ?? DEFAULT_HERO_CONFIG.showProgressButton),
+    mottoColor: hasValidMottoColor ? value.mottoColor : DEFAULT_HERO_CONFIG.mottoColor,
+    discordUrl: typeof value.discordUrl === 'string' && value.discordUrl.trim()
+      ? value.discordUrl
+      : DEFAULT_HERO_CONFIG.discordUrl
+  };
+};
+
 function App() {
-  const [view, setView] = useState<'home' | 'tactics' | 'consumables' | 'epgp' | 'sr' | 'guides' | 'admin' | 'all-progress'>('home');
+  const [view, setView] = useState<View>(() => pathToView(window.location.pathname));
   const [discordAuth, setDiscordAuth] = useState<DiscordAuthState>({ status: 'idle', user: null });
   
   // Centralized State for Admin Editing
-  const [officers, setOfficers] = useState(initialOfficers);
-  const [progress, setProgress] = useState(initialProgress);
-  const [consumables, setConsumables] = useState(initialConsumables);
+  const [officers, setOfficers] = useState(() => loadStoredOfficers() || initialOfficers);
+  const [progress, setProgress] = useState(() => loadStoredProgress() || initialProgress);
+  const [consumables, setConsumables] = useState(() => loadStoredConsumables() || initialConsumables);
   const [epValues, setEpValues] = useState(initialEpValues);
   const [rules, setRules] = useState([
     { title: "Viselkedés", description: "Légy megértő és tisztelettudó klántársaiddal. A jó hangulat megtartása mindenkinek közös érdeke." },
@@ -47,29 +186,20 @@ function App() {
     { title: "Reputáció", description: "Zul'gurub (Zandalar Tribe) reputációt Revered szintre kell felhúzni." },
   ]);
 
-  const [heroConfig, setHeroConfig] = useState({
-    title: "INSANE",
-    subtitle: "A Turtle WoW legelismertebb magyar PvE közössége.",
-    motto: "Fegyelem • Tudás • Győzelem",
-    showMotto: true,
-    bgType: 'video' as 'image' | 'video',
-    bgImage: "https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=2574&auto=format&fit=crop",
-    bgVideo: "https://assets.mixkit.co/videos/preview/mixkit-flying-over-a-snowy-mountain-range-4360-large.mp4",
-    showProgress: true,
-    progressLabel: "NAXXRAMAS PROGRESS: 12 / 15",
-    progressValue: 80
-  });
+  const [heroConfig, setHeroConfig] = useState(() => normalizeHeroConfig(loadStoredHeroConfig() || DEFAULT_HERO_CONFIG));
 
-  const [guides, setGuides] = useState([
+  const [guides, setGuides] = useState(() => loadStoredGuides() || [
     { id: 1, title: "Obsidian Mining Tipp", category: "Szakmák", content: "Bármely fajjal elérhető a +10 Mining skill, ami nélkülözhetetlen az Obsidian bányászatához. Szükséges hozzá: Enchant Gloves (+5), Goblin Mining Pick (+5).", date: "2024.03.10", badge: "Pro Tipp" },
     { id: 2, title: "Level 18 Mount", category: "Szintezés", content: "Keresd Silas Darkmoon-t a Darkmoon Faire idején. A Torta's Egg quest teljesítése után már 18-as szinten saját hátasod lehet!", date: "2024.03.11" },
     { id: 3, title: "Sátrazás és Rested XP", category: "Túlélés", content: "A Survival secondary skill a kulcs a gyors szintezéshez. A sátrak alatt 3x gyorsabban gyűlik a Rested XP városokban.", date: "2024.03.12", badge: "Fontos" },
   ]);
 
   const [tactics, setTactics] = useState(() => {
-    return rawInitialTactics.map(raid => ({
+    const stored = loadStoredTactics();
+    const source = stored || rawInitialTactics;
+    return source.map((raid: any) => ({
       ...raid,
-      bosses: raid.bosses.map(boss => {
+      bosses: (raid.bosses || []).map((boss: any) => {
         let description = boss.description;
         if (typeof description !== 'string') {
             description = JSON.stringify([{ 
@@ -138,6 +268,73 @@ function App() {
     window.scrollTo(0, 0);
   }, [view]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(CONSUMABLES_STORAGE_KEY, JSON.stringify(consumables));
+    } catch {
+      // ignore storage write errors
+    }
+  }, [consumables]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(TACTICS_STORAGE_KEY, JSON.stringify(tactics));
+    } catch {
+      // ignore storage write errors
+    }
+  }, [tactics]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(progress));
+    } catch {
+      // ignore storage write errors
+    }
+  }, [progress]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(HERO_STORAGE_KEY, JSON.stringify(heroConfig));
+    } catch {
+      // ignore storage write errors
+    }
+  }, [heroConfig]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(OFFICERS_STORAGE_KEY, JSON.stringify(officers));
+    } catch {
+      // ignore storage write errors
+    }
+  }, [officers]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(GUIDES_STORAGE_KEY, JSON.stringify(guides));
+    } catch {
+      // ignore storage write errors
+    }
+  }, [guides]);
+
+  useEffect(() => {
+    const targetPath = viewToPath[view];
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState({}, '', targetPath);
+    }
+  }, [view]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      setView(pathToView(window.location.pathname));
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  const navigateToView = (nextView: View) => {
+    setView(nextView);
+  };
+
   const handleDiscordLogin = () => {
     try {
       startDiscordLogin('admin');
@@ -157,13 +354,13 @@ function App() {
 
   return (
     <div className="min-h-screen text-slate-200 bg-slate-950 selection:bg-[#c8aa6e] selection:text-black">
-      {view !== 'admin' && <Header setView={setView} currentView={view} />}
+      {view !== 'admin' && <Header setView={navigateToView} currentView={view} />}
       
       <main>
         {view === 'home' && (
           <>
-            <Hero setView={setView} config={heroConfig} />
-            <RaidProgress data={progress} setView={setView} />
+            <Hero setView={navigateToView} config={heroConfig} />
+            <RaidProgress data={progress} setView={navigateToView} />
             <Rules data={rules} />
             <LootSystem epValues={epValues} />
             <Roster data={officers} />
@@ -194,14 +391,19 @@ function App() {
             <Guides data={guides} />
           </div>
         )}
+        {view === 'info' && (
+          <div className="pt-20">
+            <InfoPage />
+          </div>
+        )}
         {view === 'all-progress' && (
           <div className="pt-20">
-            <AllProgress data={progress} setView={setView} />
+            <AllProgress data={progress} setView={navigateToView} />
           </div>
         )}
         {view === 'admin' && (
           <AdminDashboard 
-            setView={setView}
+            setView={navigateToView}
             data={{ officers, progress, consumables, tactics, epValues, rules, guides, heroConfig }}
             updaters={{ setOfficers, setProgress, setConsumables, setTactics, setEpValues, setRules, setGuides, setHeroConfig }}
             discordAuth={discordAuth}
@@ -211,9 +413,10 @@ function App() {
         )}
       </main>
       
-      {view !== 'admin' && <Footer setView={setView} />}
+      {view !== 'admin' && <Footer setView={navigateToView} />}
     </div>
   );
 }
 
 export default App;
+

@@ -85,20 +85,28 @@ const RaidTactics: React.FC<{ data: any[] }> = ({ data }) => {
                             {block.mediaType === 'image' ? (
                                 <img src={block.url} alt="Tactics Visual" className="w-full h-auto grayscale hover:grayscale-0 transition-all duration-700" />
                             ) : (
-                                <div className="aspect-video">
-                                    <iframe 
+                                <>
+                                  {getYoutubeID(block.url) ? (
+                                    <div className="aspect-video">
+                                      <iframe
                                         className="w-full h-full"
                                         src={`https://www.youtube.com/embed/${getYoutubeID(block.url)}`}
                                         title="YouTube video player"
                                         frameBorder="0"
                                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                         allowFullScreen
-                                    ></iframe>
-                                </div>
+                                      ></iframe>
+                                    </div>
+                                  ) : (
+                                    <video src={block.url} controls className="w-full h-auto max-h-[70vh] bg-black" />
+                                  )}
+                                </>
                             )}
                             <div className="p-4 flex items-center gap-3 border-t border-white/5 bg-black/40">
                                 <PlayCircle size={16} className="text-[#c8aa6e]" />
-                                <span className="text-[10px] cinzel-font font-bold text-neutral-500 uppercase tracking-widest">Kép / Videó bizonyíték</span>
+                                <span className="text-[10px] cinzel-font font-bold text-neutral-500 uppercase tracking-widest">
+                                  {block.content || 'Kep / Video melleklet'}
+                                </span>
                             </div>
                         </div>
                     )}

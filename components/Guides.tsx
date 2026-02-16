@@ -15,8 +15,7 @@ interface Guide {
 const Guides: React.FC<{ data: Guide[] }> = ({ data }) => {
   return (
     <section className="min-h-screen py-24 bg-[#050505] relative">
-      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] opacity-10 pointer-events-none"></div>
-      <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#c8aa6e]/30 to-transparent"></div>
+    
       
       <div className="container mx-auto px-6 max-w-7xl relative z-10">
         <FadeInSection>
@@ -30,7 +29,7 @@ const Guides: React.FC<{ data: Guide[] }> = ({ data }) => {
                 </div>
             </div>
             <h2 className="text-5xl md:text-7xl font-black cinzel-font text-white mb-6 tracking-tighter">
-              BÖLCSESSÉG <span className="text-[#c8aa6e]">KÓDEXE</span>
+              HASZNOS <span className="text-[#c8aa6e]">TIPPEK</span>
             </h2>
             <p className="text-neutral-500 max-w-2xl mx-auto font-serif text-xl italic leading-relaxed">
               Klán tippek, trükkök és hasznos tudnivalók a Turtle WoW világából.<br/>

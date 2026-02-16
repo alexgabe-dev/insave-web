@@ -52,6 +52,7 @@ export const OFFICERS: Officer[] = [
   { name: 'Noden', role: 'Officer' },
   { name: 'Mahnaz', role: 'Officer' },
   { name: 'Kekke', role: 'Officer' },
+  { name: 'Megyó', role: 'Officer' },
 ];
 
 export const EP_VALUES: RaidEP[] = [
@@ -71,102 +72,92 @@ export const RAID_PROGRESS_DATA = [
 export const CONSUMABLES_DATA: RoleConsumables[] = [
   {
     role: 'Tank',
-    items: [
-      { name: 'Spirit of Zanza', effect: 'Increases Spirit by 50 and Stamina by 50', raids: ['AQ40', 'Naxx', 'K40'], category: 'Long Effects', duration: '2h' },
-      { name: 'Elixir of the Mongoose', effect: '+25 Agility, +2% Crit', raids: ['BWL', 'AQ40', 'Naxx', 'K40'], category: 'Long Effects', duration: '1h' },
-      { name: 'Elixir of Giants', effect: '+25 Strength', raids: ['BWL', 'AQ40', 'Naxx', 'K40'], category: 'Long Effects', notes: 'STR category' },
-      { name: 'JUJU Power', effect: '+30 Strength', raids: ['AQ40', 'Naxx', 'K40'], category: 'Long Effects', notes: 'STR category' },
-      { name: 'Juju Might', effect: '+40 Attack Power', raids: ['Naxx', 'K40'], category: 'Long Effects', duration: '10 min', notes: 'AP category' },
-      { name: 'Winterfall Firewater', effect: '+35 Melee AP and size', raids: ['Naxx', 'K40'], category: 'Long Effects', duration: '20 min', notes: 'AP category' },
-      { name: 'Elixir of Fortitude', effect: '+120 Max Health', raids: ['BWL', 'AQ40', 'Naxx', 'K40'], category: 'Long Effects', duration: '1h' },
-      { name: 'Elixir of Superior Defense', effect: '+450 Armor', raids: ['BWL', 'AQ40', 'Naxx', 'K40'], category: 'Long Effects', duration: '1h' },
-      { name: 'Gift of Arthas', effect: '+10 Shadow Res, attacker takes +8 damage', raids: ['Naxx', 'K40'], category: 'Long Effects', duration: '30 min', notes: 'No persist through death' },
-      { name: 'Ground Scorpok Assay', effect: '+25 Agility', raids: ['AQ40', 'Naxx', 'K40'], category: 'Long Effects', duration: '1h' },
-      { name: 'Nordanaar Herbal Tea', effect: 'Restores 1050-1751 Health/Mana', raids: ['MC', 'BWL', 'AQ40', 'Naxx', 'K40'], category: 'Short Effects' },
-      { name: 'Major Healing Potion', effect: '+1000 Armor', raids: ['MC', 'BWL', 'AQ40', 'Naxx', 'K40'], category: 'Short Effects', duration: '90 sec' },
-      { name: 'Greater Stoneshield Potion', effect: '+2000 Armor', raids: ['Naxx', 'K40'], category: 'Short Effects', duration: '90 sec' },
-      { name: 'Free Action Potion', effect: 'Immune to Stun/Movement Impairment', raids: ['MC', 'BWL', 'AQ40', 'Naxx', 'K40'], category: 'Short Effects', duration: '30 sec' },
-      { name: 'Hardened Mushroom', effect: '+25 Stamina', raids: ['AQ40', 'Naxx', 'K40'], category: 'Food', duration: '15 min', notes: 'Stacks with Gumbo' },
-      { name: 'Le Fishe Au Chocolat', effect: '1% dodge and 4 defense', raids: ['AQ40', 'Naxx', 'K40'], category: 'Food', duration: '15 min' },
-      { name: 'Gurubashi Gumbo', effect: '+10 Stamina, 1% Crit Reduction', raids: ['AQ40', 'Naxx', 'K40'], category: 'Food', duration: '15 min' },
-      { name: 'Rumsey Rum Black Label', effect: '+15 Stamina', raids: ['Naxx', 'K40'], category: 'Food', duration: '15 min' },
-      { name: 'Medivh’s Merlot', effect: '+25 Stamina', raids: ['K40'], category: 'Food', duration: '15 min', notes: 'Stacks with food buffs' },
-    ]
+    items: []
   },
   {
     role: 'Melee',
-    items: [
-      { name: 'Spirit of Zanza', effect: 'Increases Spirit by 50 and Stamina by 50', raids: ['AQ40', 'Naxx', 'K40'], category: 'Long Effects', duration: '2h' },
-      { name: 'Elixir of the Mongoose', effect: '+25 Agility, +2% Crit', raids: ['BWL', 'AQ40', 'Naxx', 'K40'], category: 'Long Effects', duration: '1h' },
-      { name: 'Elixir of Giants', effect: '+25 Strength', raids: ['BWL', 'AQ40', 'Naxx', 'K40'], category: 'Long Effects', notes: 'STR category' },
-      { name: 'JUJU Power', effect: '+30 Strength', raids: ['AQ40', 'Naxx', 'K40'], category: 'Long Effects', notes: 'STR category' },
-      { name: 'Juju Might', effect: '+40 Attack Power', raids: ['Naxx', 'K40'], category: 'Long Effects', notes: 'AP category' },
-      { name: 'Winterfall Firewater', effect: '+35 AP', raids: ['Naxx', 'K40'], category: 'Long Effects', notes: 'AP category' },
-      { name: 'Elixir of Fortitude', effect: '+120 Max Health', raids: ['BWL', 'AQ40', 'Naxx', 'K40'], category: 'Long Effects' },
-      { name: 'Elemental Sharpening Stone', effect: '+2% Crit on weapon', raids: ['Naxx', 'K40'], category: 'Long Effects', duration: '30 min' },
-      { name: 'Ground Scorpok Assay', effect: '+25 Agility', raids: ['AQ40', 'Naxx', 'K40'], category: 'Long Effects' },
-      { name: 'R.O.I.D.S.', effect: '+25 Strength', raids: ['AQ40', 'Naxx', 'K40'], category: 'Long Effects' },
-      { name: 'Nordanaar Herbal Tea', effect: 'Restores 1050-1751 Health/Mana', raids: ['MC', 'BWL', 'AQ40', 'Naxx', 'K40'], category: 'Short Effects' },
-      { name: 'Major Healing Potion', effect: '+1000 Armor', raids: ['MC', 'BWL', 'AQ40', 'Naxx', 'K40'], category: 'Short Effects', duration: '90 sec' },
-      { name: 'Free Action Potion', effect: 'Immune to Stun/Movement Impairment', raids: ['MC', 'BWL', 'AQ40', 'Naxx', 'K40'], category: 'Short Effects' },
-      { name: 'Power Mushroom', effect: '+20 Strength', raids: ['AQ40', 'Naxx', 'K40'], category: 'Food' },
-      { name: 'Danonzo’s Tel’Abim Medley', effect: '2% Haste', raids: ['Naxx', 'K40'], category: 'Food' },
-      { name: 'Le Fishe Au Chocolat', effect: '+10 Agility', raids: ['AQ40', 'Naxx', 'K40'], category: 'Food' },
-      { name: 'Consecrated Sharpening Stone', effect: '+100 AP against Undead', raids: ['Naxx'], category: 'Naxxramas Only' },
-    ]
+    items: []
   },
   {
-    role: 'Hunter',
-    items: [
-      { name: 'Spirit of Zanza', effect: 'Increases Spirit by 50 and Stamina by 50', raids: ['AQ40', 'Naxx', 'K40'], category: 'Long Effects' },
-      { name: 'Elixir of the Mongoose', effect: '+25 Agility, +2% Crit', raids: ['BWL', 'AQ40', 'Naxx', 'K40'], category: 'Long Effects' },
-      { name: 'Elixir of Fortitude', effect: '+120 Max Health', raids: ['Naxx', 'K40'], category: 'Long Effects' },
-      { name: 'Juju Might', effect: '+40 AP', raids: ['Naxx', 'K40'], category: 'Long Effects', duration: '20 min' },
-      { name: 'Brilliant Mana Oil', effect: '12 MP5 and 25 Healing/Damage', raids: ['Naxx', 'K40'], category: 'Long Effects' },
-      { name: 'Ground Scorpok Assay', effect: '+25 Agility', raids: ['AQ40', 'Naxx', 'K40'], category: 'Long Effects' },
-      { name: 'Cerebral Cortex Compound', effect: '+25 Intellect', raids: ['AQ40', 'Naxx', 'K40'], category: 'Long Effects' },
-      { name: 'Major Mana Potion', effect: 'Restores 1350-2251 Mana', raids: ['MC', 'BWL', 'AQ40', 'Naxx', 'K40'], category: 'Short Effects' },
-      { name: 'Major Healing Potion', effect: '+1000 Armor', raids: ['MC', 'BWL', 'AQ40', 'Naxx', 'K40'], category: 'Short Effects', duration: '90 sec' },
-      { name: 'Danonzo’s Tel’Abim Surprise', effect: '+45 Ranged AP', raids: ['Naxx', 'K40'], category: 'Food' },
-      { name: 'Danonzo’s Tel’Abim Medley', effect: '2% Haste', raids: ['Naxx', 'K40'], category: 'Food' },
-      { name: 'Le Fishe Au Chocolat', effect: '+10 Agility', raids: ['AQ40', 'Naxx', 'K40'], category: 'Food' },
-      { name: 'Consecrated Sharpening Stone', effect: '+100 AP against Undead', raids: ['Naxx'], category: 'Naxxramas Only' },
-    ]
+    role: 'Ranged',
+    items: []
   },
   {
     role: 'Caster',
-    items: [
-      { name: 'Spirit of Zanza', effect: 'Increases Spirit by 50 and Stamina by 50', raids: ['AQ40', 'Naxx', 'K40'], category: 'Long Effects' },
-      { name: 'Elixir of Fortitude', effect: '+120 Max Health', raids: ['Naxx', 'K40'], category: 'Long Effects' },
-      { name: 'Mageblood Potion', effect: '12 MP5', raids: ['AQ40', 'Naxx', 'K40'], category: 'Long Effects' },
-      { name: 'Brilliant Wizard Oil', effect: '+36 Spell Damage and 1% Crit', raids: ['BWL', 'AQ40', 'Naxx', 'K40'], category: 'Long Effects' },
-      { name: 'Greater Arcane Elixir', effect: '+35 Spell Damage', raids: ['BWL', 'AQ40', 'Naxx', 'K40'], category: 'Long Effects' },
-      { name: 'Elixir of Shadow/Fire/Frost Power', effect: '+15 to +55 SP', raids: ['AQ40', 'Naxx', 'K40'], category: 'Long Effects' },
-      { name: 'Dreamshard Elixir', effect: '2% Spell Crit and 15 Spell Power', raids: ['AQ40', 'Naxx', 'K40'], category: 'Long Effects' },
-      { name: 'Dreamtonic', effect: '+35 Spell Damage', raids: ['Naxx', 'K40'], category: 'Long Effects', duration: '20 min' },
-      { name: 'Cerebral Cortex Compound', effect: '+25 Intellect', raids: ['AQ40', 'Naxx', 'K40'], category: 'Long Effects' },
-      { name: 'Major Mana Potion', effect: 'Restores 1350-2251 Mana', raids: ['MC', 'BWL', 'AQ40', 'Naxx', 'K40'], category: 'Short Effects' },
-      { name: 'Juice Striped Melon', effect: '+10 Intellect', raids: ['Naxx', 'K40'], category: 'Food' },
-      { name: 'Nightfin Soup', effect: '8 MP5', raids: ['MC', 'BWL', 'AQ40', 'Naxx', 'K40'], category: 'Food' },
-      { name: 'Danonzo’s Tel’Abim Delight', effect: '+22 Spell Damage', raids: ['Naxx', 'K40'], category: 'Food' },
-      { name: 'Medivh’s Merlot Blue', effect: '+15 Intellect', raids: ['K40'], category: 'Food', notes: 'Stacks with food buffs' },
-      { name: 'Blessed Wizard Oil', effect: '+60 Spell Damage against Undead', raids: ['Naxx'], category: 'Naxxramas Only' },
-    ]
+    items: []
   },
   {
     role: 'Healer',
-    items: [
-      { name: 'Spirit of Zanza', effect: 'Increases Spirit by 50 and Stamina by 50', raids: ['AQ40', 'Naxx', 'K40'], category: 'Long Effects' },
-      { name: 'Dreamshard Elixir', effect: '2% Spell Crit and 15 Spell Power', raids: ['AQ40', 'Naxx', 'K40'], category: 'Long Effects' },
-      { name: 'Elixir of Fortitude', effect: '+120 Max Health', raids: ['Naxx', 'K40'], category: 'Long Effects' },
-      { name: 'Brilliant Mana Oil', effect: '12 MP5 and 25 Healing', raids: ['BWL', 'AQ40', 'Naxx', 'K40'], category: 'Long Effects' },
-      { name: 'Cerebral Cortex Compound', effect: '+25 Intellect', raids: ['AQ40', 'Naxx', 'K40'], category: 'Long Effects' },
-      { name: 'Mageblood Potion', effect: '12 MP5', raids: ['AQ40', 'Naxx', 'K40'], category: 'Long Effects' },
-      { name: 'Major Mana Potion', effect: 'Restores 1350-2251 Mana', raids: ['MC', 'BWL', 'AQ40', 'Naxx', 'K40'], category: 'Short Effects' },
-      { name: 'Nightfin Soup', effect: '8 MP5', raids: ['MC', 'BWL', 'AQ40', 'Naxx', 'K40'], category: 'Food' },
-      { name: 'Medivh’s Merlot Blue', effect: '+15 Intellect', raids: ['K40'], category: 'Food', notes: 'Stacks with food buffs' },
-    ]
+    items: []
   }
+];
+
+export const CONSUMABLES_CATALOG: Array<{
+  name: string;
+  effect: string;
+  category: string;
+  duration?: string;
+}> = [
+  { name: 'Spirit of Zanza', effect: 'Increases Spirit by 50 and Stamina by 50', category: 'Long Effects', duration: '2h' },
+  { name: 'Elixir of the Mongoose', effect: '+25 Agility, +2% Crit', category: 'Long Effects', duration: '1h' },
+  { name: 'Elixir of Giants', effect: '+25 Strength', category: 'Long Effects' },
+  { name: 'JUJU Power', effect: '+30 Strength', category: 'Long Effects' },
+  { name: 'Juju Might', effect: '+40 Attack Power', category: 'Long Effects', duration: '10 min' },
+  { name: 'Winterfall Firewater', effect: '+35 Melee AP and size', category: 'Long Effects', duration: '20 min' },
+  { name: 'Elixir of Fortitude', effect: '+120 Max Health', category: 'Long Effects', duration: '1h' },
+  { name: 'Elixir of Superior Defense', effect: '+450 Armor', category: 'Long Effects', duration: '1h' },
+  { name: 'Gift of Arthas', effect: '+10 Shadow Res, attacker takes +8 damage', category: 'Long Effects', duration: '30 min' },
+  { name: 'Ground Scorpok Assay', effect: '+25 Agility', category: 'Long Effects', duration: '1h' },
+  { name: 'Elemental Sharpening Stone', effect: '+2% Crit on weapon', category: 'Long Effects', duration: '30 min' },
+  { name: 'R.O.I.D.S.', effect: '+25 Strength', category: 'Long Effects' },
+  { name: 'Brilliant Mana Oil', effect: '12 MP5 and 25 Healing/Damage', category: 'Long Effects' },
+  { name: 'Brilliant Wizard Oil', effect: '+36 Spell Damage and 1% Crit', category: 'Long Effects' },
+  { name: 'Mageblood Potion', effect: '12 MP5', category: 'Long Effects' },
+  { name: 'Greater Arcane Elixir', effect: '+35 Spell Damage', category: 'Long Effects' },
+  { name: 'Elixir of Shadow/Fire/Frost Power', effect: '+15 to +55 SP', category: 'Long Effects' },
+  { name: 'Dreamshard Elixir', effect: '2% Spell Crit and 15 Spell Power', category: 'Long Effects' },
+  { name: 'Dreamtonic', effect: '+35 Spell Damage', category: 'Long Effects', duration: '20 min' },
+  { name: 'Cerebral Cortex Compound', effect: '+25 Intellect', category: 'Long Effects' },
+
+  { name: 'Nordanaar Herbal Tea', effect: 'Restores 1050-1751 Health/Mana', category: 'Short Effects' },
+  { name: 'Major Healing Potion', effect: '+1000 Armor', category: 'Short Effects', duration: '90 sec' },
+  { name: 'Greater Stoneshield Potion', effect: '+2000 Armor', category: 'Short Effects', duration: '90 sec' },
+  { name: 'Free Action Potion', effect: 'Immune to Stun/Movement Impairment', category: 'Short Effects', duration: '30 sec' },
+  { name: 'Major Mana Potion', effect: 'Restores 1350-2251 Mana', category: 'Short Effects' },
+  { name: 'Superior Mana Potion', effect: 'Restores 900-1501 Mana', category: 'Short Effects' },
+  { name: 'Restorative Potion', effect: 'Removes one magic, curse, poison, or disease periodically', category: 'Short Effects' },
+  { name: 'Purification Potion', effect: 'Attempts to remove one Curse, one Disease and one Poison', category: 'Short Effects' },
+  { name: 'Swiftness Potion', effect: 'Increases run speed by 50% for 15 sec', category: 'Short Effects' },
+  { name: 'Limited Invulnerability Potion', effect: 'Immune to physical attacks for 6 sec', category: 'Short Effects' },
+  { name: 'Lucidity Potion', effect: 'Immune to Sleep, Polymorph, and Charm for 30 sec', category: 'Short Effects' },
+
+  { name: 'Hardened Mushroom', effect: '+25 Stamina', category: 'Food', duration: '15 min' },
+  { name: 'Power Mushroom', effect: '+20 Strength', category: 'Food' },
+  { name: 'Le Fishe Au Chocolat', effect: '1% dodge and 4 defense', category: 'Food', duration: '15 min' },
+  { name: 'Gurubashi Gumbo', effect: '+10 Stamina, 1% Crit Reduction', category: 'Food', duration: '15 min' },
+  { name: 'Rumsey Rum Black Label', effect: '+15 Stamina', category: 'Food', duration: '15 min' },
+  { name: 'Medivh’s Merlot', effect: '+25 Stamina', category: 'Food', duration: '15 min' },
+  { name: 'Medivh’s Merlot Blue', effect: '+15 Intellect', category: 'Food' },
+  { name: 'Juice Striped Melon', effect: '+10 Intellect', category: 'Food' },
+  { name: 'Nightfin Soup', effect: '8 MP5', category: 'Food' },
+  { name: 'Danonzo’s Tel’Abim Medley', effect: '2% Haste', category: 'Food' },
+  { name: 'Danonzo’s Tel’Abim Surprise', effect: '+45 Ranged AP', category: 'Food' },
+  { name: 'Danonzo’s Tel’Abim Delight', effect: '+22 Spell Damage', category: 'Food' },
+
+  { name: 'Greater Arcane Protection Potion', effect: 'Absorbs Arcane damage', category: 'Raid Specific', duration: '1h' },
+  { name: 'Greater Fire Protection Potion (MC/BWL/Naxx)', effect: 'Absorbs Fire damage', category: 'Raid Specific', duration: '1h' },
+  { name: 'Greater Frost Protection Potion', effect: 'Absorbs Frost damage', category: 'Raid Specific', duration: '1h' },
+  { name: 'Greater Nature Protection Potion', effect: 'Absorbs Nature damage', category: 'Raid Specific', duration: '1h' },
+  { name: 'Greater Shadow Protection Potion', effect: 'Absorbs Shadow damage', category: 'Raid Specific', duration: '1h' },
+  { name: 'Nature Protection Potion', effect: 'Absorbs Nature damage', category: 'Raid Specific', duration: '1h' },
+  { name: 'Frozen Rune', effect: 'Absorbs Fire damage', category: 'Raid Specific', duration: '1h' },
+  { name: 'Hourglass Sand', effect: 'Cures Brood Affliction: Bronze', category: 'Raid Specific' },
+  { name: 'Frost Oil', effect: 'Weapon buff with frost proc chance', category: 'Raid Specific', duration: '30 min' },
+  { name: 'Goblin Sapper Charge', effect: 'Deals high AoE fire damage', category: 'Raid Specific' },
+  { name: 'Ez-Thro Dynamite II', effect: 'Deals AoE fire damage', category: 'Raid Specific' },
+  { name: 'Oil of Immolation', effect: 'Deals periodic AoE fire damage around caster', category: 'Raid Specific' },
+  { name: 'Consecrated Sharpening Stone', effect: '+100 AP against Undead', category: 'Naxxramas Only' },
+  { name: 'Blessed Wizard Oil', effect: '+60 Spell Damage against Undead', category: 'Naxxramas Only' }
 ];
 
 export const RAID_TACTICS_DATA: RaidTactic[] = [
@@ -312,3 +303,4 @@ export const RAID_TACTICS_DATA: RaidTactic[] = [
     ]
   }
 ];
+
