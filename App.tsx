@@ -498,15 +498,14 @@ function App() {
                     Fejlesztoi ertesites
                   </p>
                   <h3 className="text-2xl sm:text-3xl md:text-4xl font-black cinzel-font text-white leading-tight">
-                    Az oldal meg fejlesztes alatt all
+                    Az oldal még fejlesztás alatt áll
                   </h3>
                 </div>
               </div>
 
               <div className="mt-4 sm:mt-6 rounded-xl border border-white/10 bg-black/25 p-4 md:p-5">
                 <p className="text-neutral-200 text-sm md:text-base leading-relaxed font-serif">
-                  Az oldalon idonkent hibak vagy bugok elofordulhatnak. Folyamatosan javitom es finomitom a rendszert,
-                  hogy minel stabilabb es gyorsabb elmenyt adjon.
+                  Az oldalon időnként hibák vagy bugok előfordulhatnak. Folyamatosan javítom és finomítom a rendszert, hogy minél stabilabb és gyorsabb élményt adjon.
                 </p>
               </div>
 
