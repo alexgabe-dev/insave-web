@@ -41,14 +41,14 @@ const Consumables: React.FC<{ data: any[] }> = ({ data }) => {
   };
 
   return (
-    <section id="consumables" className="min-h-screen py-24 bg-[#050505] relative">
+    <section id="consumables" className="min-h-screen py-24 bg-[#050505] relative overflow-x-hidden">
       <div className="absolute inset-0 bg-grid opacity-5 pointer-events-none"></div>
 
-      <div className="container mx-auto px-6 max-w-7xl relative z-10">
+      <div className="container mx-auto px-4 sm:px-6 max-w-7xl relative z-10 overflow-x-hidden">
         <FadeInSection>
           <div className="text-center mb-20">
             <span className="text-[#c8aa6e] cinzel-font text-xs font-bold tracking-[0.5em] uppercase mb-4 block">Preparedness</span>
-            <h2 className="text-5xl md:text-6xl font-black cinzel-font text-white mb-6">
+            <h2 className="text-4xl md:text-6xl font-black cinzel-font text-white mb-6">
               CONSUMABLE <span className="text-[#c8aa6e]">GUIDE</span>
             </h2>
             <p className="text-neutral-500 font-serif italic text-xl max-w-2xl mx-auto">
@@ -58,7 +58,7 @@ const Consumables: React.FC<{ data: any[] }> = ({ data }) => {
 
           <div className="grid lg:grid-cols-12 gap-12">
             {/* Sidebar Navigation */}
-            <div className="lg:col-span-3 space-y-12">
+            <div className="lg:col-span-3 space-y-12 min-w-0">
                 <div>
                     <h3 className="text-[10px] cinzel-font font-bold text-neutral-600 uppercase tracking-[0.3em] mb-6">Select Role</h3>
                     <div className="flex flex-col gap-3">
@@ -66,9 +66,9 @@ const Consumables: React.FC<{ data: any[] }> = ({ data }) => {
                         <button
                             key={roleData.role}
                             onClick={() => setActiveRoleIdx(idx)}
-                            className={`flex items-center gap-4 px-6 py-4 cinzel-font font-bold uppercase tracking-widest text-[11px] border transition-all duration-500 group ${
+                            className={`w-full min-w-0 flex items-center gap-4 px-6 py-4 cinzel-font font-bold uppercase tracking-widest text-[11px] border transition-all duration-500 group ${
                             activeRoleIdx === idx
-                                ? 'bg-[#c8aa6e] text-black border-[#c8aa6e] shadow-[0_10px_20px_rgba(200,170,110,0.2)] translate-x-2'
+                                ? 'bg-[#c8aa6e] text-black border-[#c8aa6e] shadow-[0_10px_20px_rgba(200,170,110,0.2)] lg:translate-x-2'
                                 : 'bg-transparent text-neutral-500 border-white/5 hover:border-white/20 hover:text-white'
                             }`}
                         >
@@ -102,9 +102,9 @@ const Consumables: React.FC<{ data: any[] }> = ({ data }) => {
             </div>
 
             {/* Main Content Area */}
-            <div className="lg:col-span-9">
+            <div className="lg:col-span-9 min-w-0">
                 <div className="mb-8 flex items-center justify-between border-b border-white/5 pb-4">
-                    <h4 className="cinzel-font text-2xl font-bold text-white flex items-center gap-4">
+                    <h4 className="cinzel-font text-2xl font-bold text-white flex items-center gap-4 min-w-0">
                         <span className="text-[#c8aa6e]">{selectedRole.role}</span> Toolkit
                     </h4>
                 </div>
@@ -146,15 +146,15 @@ const Consumables: React.FC<{ data: any[] }> = ({ data }) => {
                                 </span>
                               </div>
 
-                              <h5 className="text-lg font-bold cinzel-font mb-2 text-white">
+                              <h5 className="text-lg font-bold cinzel-font mb-2 text-white break-words">
                                 {item.name}
                               </h5>
 
-                              <p className="text-sm text-neutral-300 font-serif mb-6 leading-relaxed italic flex-grow">
+                              <p className="text-sm text-neutral-300 font-serif mb-6 leading-relaxed italic flex-grow break-words">
                                 {item.effect}
                               </p>
                               {raidNote && (
-                                <p className="text-xs text-neutral-200 mb-4 border-l-2 border-red-400/60 pl-3">
+                                <p className="text-xs text-neutral-200 mb-4 border-l-2 border-red-400/60 pl-3 break-words">
                                   {raidNote}
                                 </p>
                               )}
@@ -220,15 +220,15 @@ const Consumables: React.FC<{ data: any[] }> = ({ data }) => {
                                 </span>
                             </div>
 
-                            <h5 className="text-lg font-bold cinzel-font mb-2 group-hover:text-[#c8aa6e] transition-colors text-white">
+                            <h5 className="text-lg font-bold cinzel-font mb-2 group-hover:text-[#c8aa6e] transition-colors text-white break-words">
                                 {item.name}
                             </h5>
                             
-                            <p className="text-sm text-neutral-400 font-serif mb-6 leading-relaxed italic flex-grow">
+                            <p className="text-sm text-neutral-400 font-serif mb-6 leading-relaxed italic flex-grow break-words">
                                 {item.effect}
                             </p>
                             {raidNote && (
-                                <p className="text-xs text-neutral-300 mb-4 border-l-2 border-[#c8aa6e]/50 pl-3">
+                                <p className="text-xs text-neutral-300 mb-4 border-l-2 border-[#c8aa6e]/50 pl-3 break-words">
                                   {raidNote}
                                 </p>
                             )}
