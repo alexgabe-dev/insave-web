@@ -40,9 +40,13 @@ const AllProgress: React.FC<AllProgressProps> = ({ data, setView }) => {
       {/* Rács Elrendezés */}
       <section className="container mx-auto px-6 max-w-7xl mt-24">
         <FadeInSection>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="flex gap-6 overflow-x-auto pb-4 -mx-6 px-6 snap-x snap-mandatory md:mx-0 md:px-0 md:pb-0 md:overflow-visible md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-8 md:snap-none">
             {data.map((raid, idx) => (
-              <div key={idx} className="group glass-card fantasy-border-accent flex flex-col hover-glow transition-all duration-700 animate-fade-in" style={{ animationDelay: `${idx * 100}ms` }}>
+              <div
+                key={idx}
+                className="group glass-card fantasy-border-accent flex flex-col hover-glow transition-all duration-700 animate-fade-in snap-center shrink-0 w-[85vw] sm:w-[70vw] md:w-auto md:min-w-0 md:shrink"
+                style={{ animationDelay: `${idx * 100}ms` }}
+              >
                 <div className="h-56 relative overflow-hidden border-b border-white/5">
                   <img 
                     src={raid.img} 
@@ -104,7 +108,7 @@ const AllProgress: React.FC<AllProgressProps> = ({ data, setView }) => {
                 <Shield size={32} className="text-neutral-800" />
             </div>
             <p className="text-neutral-700 cinzel-font text-[10px] font-bold uppercase tracking-[0.5em]">
-                Minden jog fenntartva • INSANE EU - Turtle WoW
+                INSANE - Turtle WoW
             </p>
           </div>
         </FadeInSection>

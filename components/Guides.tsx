@@ -83,9 +83,9 @@ const Guides: React.FC<{ data: Guide[] }> = ({ data }) => {
             <h4 className="cinzel-font text-2xl text-white mb-4 tracking-widest uppercase">További Források</h4>
             <p className="text-neutral-500 font-serif italic mb-8">A Turtle WoW világa folyamatosan bővül. Maradj naprakész a hivatalos fórumokon.</p>
             <div className="flex flex-wrap justify-center gap-6">
-                <a href="https://turtle-wow.org/" target="_blank" className="px-8 py-3 border border-white/5 hover:border-[#c8aa6e] text-[10px] cinzel-font font-bold uppercase tracking-widest transition-all">Official Site</a>
-                <a href="https://database.turtle-wow.org/" target="_blank" className="px-8 py-3 border border-white/5 hover:border-[#c8aa6e] text-[10px] cinzel-font font-bold uppercase tracking-widest transition-all">Database</a>
-                <a href="https://forum.turtle-wow.org/" target="_blank" className="px-8 py-3 border border-white/5 hover:border-[#c8aa6e] text-[10px] cinzel-font font-bold uppercase tracking-widest transition-all">Forums</a>
+                <a href="https://turtlecraft.gg" target="_blank" className="px-8 py-3 border border-white/5 hover:border-[#c8aa6e] text-[10px] cinzel-font font-bold uppercase tracking-widest transition-all">Hivatalos oldal</a>
+                <a href="https://database.turtlecraft.gg" target="_blank" className="px-8 py-3 border border-white/5 hover:border-[#c8aa6e] text-[10px] cinzel-font font-bold uppercase tracking-widest transition-all">AdatbÃ¡zis</a>
+                <a href="https://forum.turtlecraft.gg" target="_blank" className="px-8 py-3 border border-white/5 hover:border-[#c8aa6e] text-[10px] cinzel-font font-bold uppercase tracking-widest transition-all">FÃ³rum</a>
             </div>
           </div>
         </FadeInSection>

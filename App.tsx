@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Sparkles } from 'lucide-react';
+import { AlertTriangle, Sparkles, X } from 'lucide-react';
 import Header from './components/Header';
 import Hero from './components/Hero';
 import RaidTactics from './components/RaidTactics';
@@ -34,6 +34,27 @@ import { ContentKey, fetchContentSnapshot, saveContentSection } from './utils/co
 type View = 'home' | 'tactics' | 'consumables' | 'epgp' | 'sr' | 'guides' | 'info' | 'admin' | 'all-progress';
 const VIEW_STORAGE_KEY = 'insave_last_view_v1';
 const DISCORD_CALLBACK_TIMEOUT_MS = 8000;
+const DEV_NOTICE_COOKIE_KEY = 'insave_dev_notice_dismissed_v1';
+const DEV_NOTICE_COOKIE_MAX_AGE_SEC = 60 * 60 * 24 * 120;
+
+const getCookieValue = (name: string): string | null => {
+  if (typeof document === 'undefined') return null;
+  const item = document.cookie
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${name}=`));
+  if (!item) return null;
+  return decodeURIComponent(item.slice(name.length + 1));
+};
+
+const isDevNoticeDismissed = (): boolean => getCookieValue(DEV_NOTICE_COOKIE_KEY) === '1';
+
+const persistDevNoticeDismissed = () => {
+  if (typeof document === 'undefined') return;
+  const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:';
+  const secureFlag = isSecure ? '; Secure' : '';
+  document.cookie = `${DEV_NOTICE_COOKIE_KEY}=1; Max-Age=${DEV_NOTICE_COOKIE_MAX_AGE_SEC}; Path=/; SameSite=Lax${secureFlag}`;
+};
 
 const DEFAULT_RULES = [
   { title: 'Viselkedés', description: 'Légy megértő és tisztelettudó klántársaiddal. A jó hangulat megtartása mindenkinek közös érdeke.' },
@@ -153,7 +174,7 @@ const normalizeTactics = (source: any[]) => {
 
 function App() {
   const [view, setView] = useState<View>(() => getInitialView());
-  const [showDevNotice, setShowDevNotice] = useState(true);
+  const [showDevNotice, setShowDevNotice] = useState(() => !isDevNoticeDismissed());
   const [discordAuth, setDiscordAuth] = useState<DiscordAuthState>({ status: 'idle', user: null });
   const [contentError, setContentError] = useState<string | null>(null);
 
@@ -430,6 +451,11 @@ function App() {
     setDiscordAuth({ status: 'idle', user: null });
   };
 
+  const dismissDevNotice = useCallback(() => {
+    setShowDevNotice(false);
+    persistDevNoticeDismissed();
+  }, []);
+
   return (
     <div className="min-h-screen text-slate-200 bg-slate-950 selection:bg-[#c8aa6e] selection:text-black">
       {contentError && (
@@ -438,46 +464,61 @@ function App() {
         </div>
       )}
 
-      {view !== 'admin' && <Header setView={navigateToView} currentView={view} />}
+      {view !== 'admin' && (
+        <Header
+          setView={navigateToView}
+          currentView={view}
+          discordUrl={heroConfig?.discordUrl}
+        />
+      )}
 
       {showDevNotice && view !== 'admin' && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/75 backdrop-blur-md p-4 md:p-6">
-          <div className="relative w-full max-w-2xl overflow-hidden rounded-2xl md:rounded-3xl border border-[#c8aa6e]/35 bg-gradient-to-b from-[#0f1016] via-[#0b0c12] to-[#08090d] shadow-[0_25px_90px_rgba(0,0,0,0.65)]">
-            <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-[380px] h-40 bg-[radial-gradient(circle,rgba(200,170,110,0.25),transparent_70%)]" />
-            <div className="absolute -bottom-20 right-0 w-[340px] h-44 bg-[radial-gradient(circle,rgba(88,101,242,0.22),transparent_70%)]" />
+        <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-md p-3 sm:p-6">
+          <div className="relative w-full sm:max-w-2xl max-h-[85vh] overflow-hidden rounded-2xl sm:rounded-3xl border border-[#c8aa6e]/35 bg-gradient-to-b from-[#0f1016] via-[#0b0c12] to-[#08090d] shadow-[0_25px_90px_rgba(0,0,0,0.65)]">
+            <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-[320px] sm:w-[420px] h-40 bg-[radial-gradient(circle,rgba(200,170,110,0.25),transparent_70%)]" />
+            <div className="absolute -bottom-24 right-0 w-[300px] sm:w-[380px] h-44 bg-[radial-gradient(circle,rgba(88,101,242,0.22),transparent_70%)]" />
             <div className="absolute inset-0 bg-grid opacity-[0.07]" />
 
-            <div className="relative z-10 p-5 sm:p-7 md:p-9">
-              <div className="flex items-start gap-4">
+            <button
+              type="button"
+              onClick={dismissDevNotice}
+              className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 rounded-full border border-white/10 bg-black/40 p-2 text-neutral-300 hover:text-white hover:border-[#c8aa6e]/60 transition-all"
+              aria-label="Bezaras"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="relative z-10 p-5 sm:p-7 md:p-9 overflow-y-auto max-h-[85vh]">
+              <div className="flex flex-col sm:flex-row sm:items-start gap-4">
                 <div className="shrink-0 rounded-xl border border-[#c8aa6e]/35 bg-[#c8aa6e]/10 p-3">
                   <AlertTriangle className="w-6 h-6 text-[#e8cf98]" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] uppercase tracking-[0.35em] text-[#c8aa6e]/85 font-bold cinzel-font mb-2">
-                    Fejlesztői értesítés
+                  <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] sm:tracking-[0.35em] text-[#c8aa6e]/85 font-bold cinzel-font mb-2">
+                    Fejlesztoi ertesites
                   </p>
                   <h3 className="text-2xl sm:text-3xl md:text-4xl font-black cinzel-font text-white leading-tight">
-                    Az oldal még fejlesztés alatt áll
+                    Az oldal meg fejlesztes alatt all
                   </h3>
                 </div>
               </div>
 
-              <div className="mt-5 md:mt-6 rounded-xl border border-white/10 bg-black/25 p-4 md:p-5">
+              <div className="mt-4 sm:mt-6 rounded-xl border border-white/10 bg-black/25 p-4 md:p-5">
                 <p className="text-neutral-200 text-sm md:text-base leading-relaxed font-serif">
-                  Az oldalon időnként hibák vagy bugok előfordulhatnak. Folyamatosan javítom és finomítom a rendszert,
-                  hogy minél stabilabb és gyorsabb élményt adjon.
+                  Az oldalon idonkent hibak vagy bugok elofordulhatnak. Folyamatosan javitom es finomitom a rendszert,
+                  hogy minel stabilabb es gyorsabb elmenyt adjon.
                 </p>
               </div>
 
-              <div className="mt-5 md:mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-neutral-400 font-bold">
+              <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] sm:tracking-[0.22em] text-neutral-400 font-bold">
                   <Sparkles className="w-4 h-4 text-[#c8aa6e]" />
-                  Köszönöm a türelmet
+                  Koszonom a turelmet
                 </div>
                 <button
                   type="button"
-                  onClick={() => setShowDevNotice(false)}
-                  className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-[#c8aa6e]/45 text-[#e8cf98] hover:bg-[#c8aa6e]/12 hover:border-[#c8aa6e]/70 transition-all text-xs uppercase tracking-[0.24em] font-bold cinzel-font"
+                  onClick={dismissDevNotice}
+                  className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-[#c8aa6e]/45 text-[#e8cf98] hover:bg-[#c8aa6e]/12 hover:border-[#c8aa6e]/70 transition-all text-xs uppercase tracking-[0.22em] font-bold cinzel-font"
                 >
                   Rendben
                 </button>

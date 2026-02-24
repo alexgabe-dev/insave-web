@@ -11,6 +11,8 @@ import {
 import { DiscordAuthState, getDiscordAvatarUrl, getDiscordDisplayName } from '../../auth/discord';
 import { getConsumableIcon } from '../../utils/consumableIcons';
 import { CONSUMABLES_CATALOG } from '../../constants';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faDiscord } from '@fortawesome/free-brands-svg-icons';
 
 interface AdminDashboardProps {
   setView: (view: any) => void;
@@ -71,63 +73,52 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ setView, data, updaters
 
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-[#050505] flex items-center justify-center p-6 relative overflow-hidden">
-        {/* Cinematic Login Background */}
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
         <div className="absolute inset-0 z-0">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[#c8aa6e]/5 blur-[120px] rounded-full animate-pulse"></div>
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent,_#050505)]"></div>
-          <div className="absolute inset-0 bg-grid opacity-5"></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[720px] h-[720px] bg-[#c8aa6e]/8 blur-[120px] rounded-full" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent,_#050505)]" />
+          <div className="absolute inset-0 bg-grid opacity-5" />
         </div>
 
         <div className="w-full max-w-md relative z-10">
-          <div className="bg-[#0a0a0b] border border-white/5 p-10 fantasy-border shadow-2xl text-center">
-            <div className="flex justify-center mb-8">
-              <div className="relative">
-                <div className="absolute inset-0 bg-[#c8aa6e]/20 blur-xl rounded-full"></div>
-                <div className="relative w-20 h-20 bg-black border border-[#c8aa6e]/30 flex items-center justify-center rotate-45 group transition-transform hover:rotate-90 duration-500">
-                  <Lock className="-rotate-45 text-[#c8aa6e]" size={32} />
-                </div>
-              </div>
+          <div className="bg-[#0a0a0b] border border-white/10 fantasy-border rounded-xl p-6 sm:p-8 shadow-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#c8aa6e]/35 bg-[#c8aa6e]/10 px-3 py-1.5 text-[10px] uppercase tracking-[0.24em] text-[#c8aa6e] font-bold cinzel-font">
+              <Lock size={13} /> Admin
             </div>
 
-            <h2 className="text-3xl font-black cinzel-font text-white mb-3 uppercase tracking-widest">
-              Zárt <span className="text-[#c8aa6e]">Terület</span>
-            </h2>
-            <p className="text-neutral-500 font-serif italic mb-10">
-              A parancsnoki híd eléréséhez hitelesítés szükséges. Csak az INSANE vezetőség számára.
+            <h2 className="mt-5 text-3xl font-black cinzel-font text-white uppercase tracking-[0.08em]">Belépes</h2>
+            <p className="mt-2 text-neutral-400 text-sm font-serif leading-relaxed">
+              Jelentkezz be Discord fiókkal az admin felülethez.
             </p>
 
             <button
               onClick={onDiscordLogin}
               disabled={isAuthenticating}
-              className={`w-full group relative flex items-center justify-center gap-4 py-5 bg-[#5865F2] hover:bg-[#4752C4] transition-all duration-500 rounded-sm overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed`}
+              className="mt-6 w-full group relative flex items-center justify-center gap-3 py-4 bg-[#5865F2] hover:bg-[#4752C4] transition-all duration-300 rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isAuthenticating ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-              ) : (
-                <>
-                  <MessageSquare size={20} className="text-white group-hover:scale-110 transition-transform" />
-                  <span className="cinzel-font font-bold text-[11px] text-white uppercase tracking-[0.3em]">Discord Belépés</span>
-                </>
-              )}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                {isAuthenticating ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    <FontAwesomeIcon icon={faDiscord} className="text-[18px] text-white group-hover:scale-110 transition-transform" />
+                    <span className="cinzel-font font-bold text-[11px] text-white uppercase tracking-[0.22em]">Belépés Discorddal</span>
+                  </>
+                )}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
             </button>
+
             {discordAuth.status === 'error' && discordAuth.error && (
-              <p className="mt-4 text-[10px] text-red-400 uppercase tracking-widest">
+              <p className="mt-4 text-[10px] text-red-400 uppercase tracking-widest break-words">
                 {discordAuth.error}
               </p>
             )}
 
-            <div className="mt-10 flex flex-col gap-4">
-              <button 
-                onClick={() => setView('home')}
-                className="flex items-center justify-center gap-2 text-[10px] font-bold cinzel-font text-neutral-600 hover:text-[#c8aa6e] transition-colors uppercase tracking-widest"
-              >
-                <ArrowLeft size={14} /> Vissza a biztonságba
-              </button>
-              <div className="h-px w-12 bg-white/5 mx-auto"></div>
-              <p className="text-[9px] text-neutral-800 uppercase tracking-widest font-black">Az összes kísérlet naplózva lesz</p>
-            </div>
+            <button
+              onClick={() => setView('home')}
+              className="mt-5 w-full inline-flex items-center justify-center gap-2 text-[10px] font-bold cinzel-font text-neutral-500 hover:text-[#c8aa6e] transition-colors uppercase tracking-widest"
+            >
+              <ArrowLeft size={14} /> Vissza a főoldalra
+            </button>
           </div>
         </div>
       </div>

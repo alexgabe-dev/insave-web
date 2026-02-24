@@ -20,7 +20,7 @@ const InfoPage: React.FC = () => {
       icon: <Globe2 className="h-5 w-5 text-[#c8aa6e]" />,
       title: 'Realm',
       text: 'Turtle WoW - Nordanaar',
-      sub: '1x XP rates'
+      sub: '1x XP ráta'
     },
     {
       icon: <Clock3 className="h-5 w-5 text-[#c8aa6e]" />,
@@ -32,7 +32,7 @@ const InfoPage: React.FC = () => {
       icon: <Users className="h-5 w-5 text-[#c8aa6e]" />,
       title: 'Tagfelvétel',
       text: 'Minden classt várunk',
-      sub: 'Minden tapasztalati szint jöhet'
+      sub: 'Minden kezdő vagy veterán, bárki jöhet'
     }
   ];
 

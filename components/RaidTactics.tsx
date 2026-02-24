@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import FadeInSection from './FadeInSection';
 import { 
   BookOpen, Swords, FlaskConical, ChevronRight, LayoutList, 
@@ -8,13 +8,17 @@ import {
 const RaidTactics: React.FC<{ data: any[] }> = ({ data }) => {
   const [selectedRaidIndex, setSelectedRaidIndex] = useState(0);
   const [selectedBossIndex, setSelectedBossIndex] = useState(0);
+  const bossTitleRef = useRef<HTMLHeadingElement | null>(null);
 
   const currentRaid = data[selectedRaidIndex];
   const currentBoss = currentRaid.bosses[selectedBossIndex];
 
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [selectedBossIndex, selectedRaidIndex]);
+  const scrollToBossTitleMobile = () => {
+    if (window.innerWidth >= 1024) return;
+    window.requestAnimationFrame(() => {
+      bossTitleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
 
   // Helper to extract YouTube ID from link
   const getYoutubeID = (url: string) => {
@@ -171,7 +175,7 @@ const RaidTactics: React.FC<{ data: any[] }> = ({ data }) => {
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
                     <div>
                         <span className="text-xs font-bold text-[#c8aa6e]/60 cinzel-font tracking-[0.4em] uppercase mb-2 block">Célpont</span>
-                        <h4 className="text-4xl md:text-5xl font-black cinzel-font text-white tracking-tighter text-shadow-glow">
+                        <h4 ref={bossTitleRef} className="text-4xl md:text-5xl font-black cinzel-font text-white tracking-tighter text-shadow-glow scroll-mt-28">
                         {currentBoss.name.includes('. ') ? currentBoss.name.split('. ')[1] : currentBoss.name}
                         </h4>
                     </div>
@@ -212,7 +216,10 @@ const RaidTactics: React.FC<{ data: any[] }> = ({ data }) => {
                 {currentRaid.bosses.map((boss: any, idx: number) => (
                   <button
                     key={idx}
-                    onClick={() => setSelectedBossIndex(idx)}
+                    onClick={() => {
+                      setSelectedBossIndex(idx);
+                      scrollToBossTitleMobile();
+                    }}
                     className={`w-full text-left p-5 transition-all duration-300 border-l-4 flex items-center justify-between group rounded-sm shadow-lg ${
                       selectedBossIndex === idx 
                       ? 'bg-[#1a1a1c] border-[#c8aa6e] text-[#c8aa6e] shadow-[0_5px_15px_rgba(0,0,0,0.4)] translate-x-1' 

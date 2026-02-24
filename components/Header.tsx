@@ -8,10 +8,13 @@ import { faDiscord } from '@fortawesome/free-brands-svg-icons';
 interface HeaderProps {
   setView: (view: any) => void;
   currentView: string;
+  discordUrl?: string;
 }
 
-const Header: React.FC<HeaderProps> = ({ setView, currentView }) => {
-  const discordUrl = 'https://discord.gg/your-invite-link';
+const Header: React.FC<HeaderProps> = ({ setView, currentView, discordUrl }) => {
+  const resolvedDiscordUrl = discordUrl && discordUrl.trim()
+    ? discordUrl.trim()
+    : 'https://discord.gg/your-invite-link';
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -78,10 +81,14 @@ const Header: React.FC<HeaderProps> = ({ setView, currentView }) => {
 
   const navigate = (item: any) => {
     setView(item.view);
-    if (item.anchor) {
+    if (item.anchor && !isOpen) {
       setTimeout(() => {
         document.querySelector(item.anchor)?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
+    } else if (isOpen) {
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 50);
     }
     setIsOpen(false);
     setActiveDropdown(null);
@@ -130,7 +137,7 @@ const Header: React.FC<HeaderProps> = ({ setView, currentView }) => {
           ))}
 
           <a
-            href={discordUrl}
+            href={resolvedDiscordUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="h-10 inline-flex items-center gap-2 px-4 rounded-md bg-[#5865F2] hover:bg-[#4752C4] text-white transition-colors"
@@ -182,7 +189,7 @@ const Header: React.FC<HeaderProps> = ({ setView, currentView }) => {
               ))}
 
               <a
-                href={discordUrl}
+                href={resolvedDiscordUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#7c84ff]/40 bg-[#5865F2] px-4 py-3 text-white hover:bg-[#4752C4] transition-colors w-full"
@@ -190,10 +197,6 @@ const Header: React.FC<HeaderProps> = ({ setView, currentView }) => {
                 <FontAwesomeIcon icon={faDiscord} className="text-[16px]" />
                 <span className="cinzel-font text-[11px] font-bold uppercase tracking-[0.22em]">Csatlakozz</span>
               </a>
-
-              <div className="text-center text-[10px] uppercase tracking-[0.25em] text-neutral-500 cinzel-font pt-2">
-                Insane Guild Navigation
-              </div>
             </div>
           </div>
         </div>
