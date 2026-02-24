@@ -21,13 +21,37 @@ interface AdminDashboardProps {
   onDiscordLogout: () => void;
 }
 
+const ADMIN_ACTIVE_TAB_STORAGE_KEY = 'insave_admin_active_tab_v1';
+const ADMIN_TABS = ['overview', 'hero', 'roster', 'progress', 'rules', 'tactics', 'consumables', 'guides'] as const;
+type AdminTab = typeof ADMIN_TABS[number];
+
+const loadStoredAdminTab = (): AdminTab => {
+  try {
+    const raw = localStorage.getItem(ADMIN_ACTIVE_TAB_STORAGE_KEY);
+    if (raw && (ADMIN_TABS as readonly string[]).includes(raw)) {
+      return raw as AdminTab;
+    }
+  } catch {
+    // ignore storage errors
+  }
+  return 'overview';
+};
+
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ setView, data, updaters, discordAuth, onDiscordLogin, onDiscordLogout }) => {
   const isLoggedIn = discordAuth.status === 'authenticated' && !!discordAuth.user;
   const isAuthenticating = discordAuth.status === 'loading';
-  const [activeTab, setActiveTab] = useState<'overview' | 'hero' | 'roster' | 'progress' | 'rules' | 'tactics' | 'consumables' | 'guides'>('overview');
+  const [activeTab, setActiveTab] = useState<AdminTab>(() => loadStoredAdminTab());
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const avatarUrl = discordAuth.user ? getDiscordAvatarUrl(discordAuth.user, 64) : null;
   const displayName = discordAuth.user ? getDiscordDisplayName(discordAuth.user) : '';
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(ADMIN_ACTIVE_TAB_STORAGE_KEY, activeTab);
+    } catch {
+      // ignore storage errors
+    }
+  }, [activeTab]);
 
   const triggerSaveFeedback = () => {
     setSaveStatus('Mentve');
@@ -207,7 +231,7 @@ const SaveIconBtn = ({ onClick }: { onClick: () => void }) => (
   <button 
     type="button"
     onClick={(e) => { e.preventDefault(); onClick(); }}
-    className="p-3 bg-[#c8aa6e] text-black rounded-full hover:bg-[#e5d5b0] transition-all shadow-[0_5px_15px_rgba(0,0,0,0.3)] active:scale-90 hover:shadow-[0_0_20px_rgba(200,170,110,0.4)]"
+    className="fixed bottom-4 right-4 z-[260] p-3 bg-[#c8aa6e] text-black rounded-full hover:bg-[#e5d5b0] transition-all shadow-[0_5px_15px_rgba(0,0,0,0.3)] active:scale-90 hover:shadow-[0_0_20px_rgba(200,170,110,0.4)] md:bottom-8 md:right-8"
     title="Változtatások mentése"
   >
     <Save size={20} />
@@ -223,7 +247,10 @@ const ProgressEditor = ({ progress, onSave }: any) => {
 
   useEffect(() => {
     setLocal(JSON.parse(JSON.stringify(progress)));
-    setSelectedRaidIdx(0);
+    setSelectedRaidIdx((prev) => {
+      if (!progress.length) return 0;
+      return Math.min(prev, progress.length - 1);
+    });
     setSearch('');
     setHasUnsavedChanges(false);
     setUploadError(null);
@@ -307,6 +334,34 @@ const ProgressEditor = ({ progress, onSave }: any) => {
     reader.readAsDataURL(file);
   });
 
+  const optimizeImageForStorage = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const maxSize = 1400;
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        const width = Math.max(1, Math.round(img.width * scale));
+        const height = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Nem sikerult a kep optimalizalasa.'));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/webp', 0.82);
+        resolve(dataUrl);
+      };
+      img.onerror = () => reject(new Error('Nem sikerult feldolgozni a kepet.'));
+      img.src = String(reader.result || '');
+    };
+    reader.onerror = () => reject(new Error('Nem sikerult beolvasni a fajlt.'));
+    reader.readAsDataURL(file);
+  });
+
   const handleRaidImageUpload = async (idx: number, file?: File | null) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) {
@@ -315,7 +370,7 @@ const ProgressEditor = ({ progress, onSave }: any) => {
     }
     setUploadError(null);
     try {
-      const dataUrl = await readFileAsDataUrl(file);
+      const dataUrl = await optimizeImageForStorage(file);
       updateRaid(idx, 'img', dataUrl);
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Nem sikerult beolvasni a fajlt.');

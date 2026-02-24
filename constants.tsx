@@ -20,7 +20,7 @@ export const NAV_GROUPS = [
   { 
     label: 'Rendszerek', 
     items: [
-      { label: 'EPGP', view: 'epgp', href: '#epgp' },
+      { label: 'EPGP Rendszer', view: 'epgp', href: '#epgp' },
       { label: 'SR Rendszer', view: 'sr', href: '#sr' },
       { label: 'Szabályzat', view: 'home', anchor: '#rules' },
     ]

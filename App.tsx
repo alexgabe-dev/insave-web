@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, Sparkles } from 'lucide-react';
 import Header from './components/Header';
 import Hero from './components/Hero';
@@ -15,23 +14,58 @@ import Guides from './components/Guides';
 import Roster from './components/Roster';
 import Footer from './components/Footer';
 import AdminDashboard from './components/Admin/AdminDashboard';
-import { 
-  OFFICERS as initialOfficers, 
-  RAID_PROGRESS_DATA as initialProgress, 
+import {
+  OFFICERS as initialOfficers,
+  RAID_PROGRESS_DATA as initialProgress,
   CONSUMABLES_DATA as initialConsumables,
   RAID_TACTICS_DATA as rawInitialTactics,
   EP_VALUES as initialEpValues
 } from './constants';
-import { 
-  clearDiscordAuth, 
+import {
+  clearDiscordAuth,
   clearDiscordCallbackParams,
-  completeDiscordLogin, 
-  loadDiscordAuth, 
-  startDiscordLogin, 
-  DiscordAuthState 
+  completeDiscordLogin,
+  loadDiscordAuth,
+  startDiscordLogin,
+  DiscordAuthState
 } from './auth/discord';
+import { ContentKey, fetchContentSnapshot, saveContentSection } from './utils/contentApi';
 
 type View = 'home' | 'tactics' | 'consumables' | 'epgp' | 'sr' | 'guides' | 'info' | 'admin' | 'all-progress';
+const VIEW_STORAGE_KEY = 'insave_last_view_v1';
+const DISCORD_CALLBACK_TIMEOUT_MS = 8000;
+
+const DEFAULT_RULES = [
+  { title: 'Viselkedés', description: 'Légy megértő és tisztelettudó klántársaiddal. A jó hangulat megtartása mindenkinek közös érdeke.' },
+  { title: 'Kommunikáció', description: 'A káromkodást mellőzzük a klán chaten. Próbálj kulturáltan kommunikálni.' },
+  { title: 'Aktivitás', description: 'Próbálj aktív lenni. Legalább heti 1 klán raiden való részvétel elvárt minden tagtól.' },
+  { title: 'Discord Fegyelem', description: 'Raid közben a Discord használata kötelező. Boss harcok alatt csak a Raid Leader beszél.' },
+  { title: 'Felkészülés', description: 'A raidekre igyekezz a Consume listát átnézni és használni.' },
+  { title: 'Reputáció', description: 'Zul\'gurub (Zandalar Tribe) reputációt Revered szintre kell felhúzni.' }
+];
+
+const DEFAULT_GUIDES = [
+  { id: 1, title: 'Obsidian Mining Tipp', category: 'Szakmák', content: 'Bármely fajjal elérhető a +10 Mining skill, ami nélkülözhetetlen az Obsidian bányászatához. Szükséges hozzá: Enchant Gloves (+5), Goblin Mining Pick (+5).', date: '2024.03.10', badge: 'Pro Tipp' },
+  { id: 2, title: 'Level 18 Mount', category: 'Szintezés', content: 'Keresd Silas Darkmoon-t a Darkmoon Faire idején. A Torta\'s Egg quest teljesítése után már 18-as szinten saját hátasod lehet!', date: '2024.03.11' },
+  { id: 3, title: 'Sátrazás és Rested XP', category: 'Túlélés', content: 'A Survival secondary skill a kulcs a gyors szintezéshez. A sátrak alatt 3x gyorsabban gyűlik a Rested XP városokban.', date: '2024.03.12', badge: 'Fontos' }
+];
+
+const DEFAULT_HERO_CONFIG = {
+  title: 'INSANE',
+  subtitle: 'A Turtle WoW legelismertebb magyar PvE közössége.',
+  motto: 'Fegyelem • Tudás • Győzelem',
+  mottoColor: '#a3a3a3',
+  showMotto: true,
+  bgType: 'video' as 'image' | 'video',
+  bgImage: 'https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=2574&auto=format&fit=crop',
+  bgVideo: 'https://assets.mixkit.co/videos/preview/mixkit-flying-over-a-snowy-mountain-range-4360-large.mp4',
+  bgOpacity: 50,
+  showProgressBar: true,
+  showProgressButton: true,
+  progressLabel: 'NAXXRAMAS PROGRESS: 12 / 15',
+  progressValue: 80,
+  discordUrl: 'https://discord.gg/your-invite-link'
+};
 
 const viewToPath: Record<View, string> = {
   home: '/home',
@@ -42,7 +76,7 @@ const viewToPath: Record<View, string> = {
   guides: '/guides',
   info: '/infok',
   admin: '/admin',
-  'all-progress': '/progress',
+  'all-progress': '/progress'
 };
 
 const pathToView = (pathname: string): View => {
@@ -59,94 +93,25 @@ const pathToView = (pathname: string): View => {
   return 'home';
 };
 
-const CONSUMABLES_STORAGE_KEY = 'insave_consumables_v2';
-const TACTICS_STORAGE_KEY = 'insave_tactics_v1';
-const PROGRESS_STORAGE_KEY = 'insave_progress_v1';
-const HERO_STORAGE_KEY = 'insave_hero_v1';
-const OFFICERS_STORAGE_KEY = 'insave_officers_v1';
-const GUIDES_STORAGE_KEY = 'insave_guides_v1';
+const isValidView = (value: unknown): value is View => {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(viewToPath, value);
+};
 
-const loadStoredConsumables = () => {
+const loadStoredView = (): View | null => {
   try {
-    const raw = localStorage.getItem(CONSUMABLES_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : null;
+    const raw = localStorage.getItem(VIEW_STORAGE_KEY);
+    return isValidView(raw) ? raw : null;
   } catch {
     return null;
   }
 };
 
-const loadStoredTactics = () => {
-  try {
-    const raw = localStorage.getItem(TACTICS_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch {
-    return null;
+const getInitialView = (): View => {
+  const fromPath = pathToView(window.location.pathname);
+  if (window.location.pathname !== '/' || fromPath !== 'home') {
+    return fromPath;
   }
-};
-
-const loadStoredProgress = () => {
-  try {
-    const raw = localStorage.getItem(PROGRESS_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-};
-
-const loadStoredHeroConfig = () => {
-  try {
-    const raw = localStorage.getItem(HERO_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : null;
-  } catch {
-    return null;
-  }
-};
-
-const loadStoredOfficers = () => {
-  try {
-    const raw = localStorage.getItem(OFFICERS_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-};
-
-const loadStoredGuides = () => {
-  try {
-    const raw = localStorage.getItem(GUIDES_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-};
-
-const DEFAULT_HERO_CONFIG = {
-  title: "INSANE",
-  subtitle: "A Turtle WoW legelismertebb magyar PvE közössége.",
-  motto: "Fegyelem • Tudás • Győzelem",
-  mottoColor: "#a3a3a3",
-  showMotto: true,
-  bgType: 'video' as 'image' | 'video',
-  bgImage: "https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=2574&auto=format&fit=crop",
-  bgVideo: "https://assets.mixkit.co/videos/preview/mixkit-flying-over-a-snowy-mountain-range-4360-large.mp4",
-  bgOpacity: 50,
-  showProgressBar: true,
-  showProgressButton: true,
-  progressLabel: "NAXXRAMAS PROGRESS: 12 / 15",
-  progressValue: 80,
-  discordUrl: "https://discord.gg/your-invite-link"
+  return loadStoredView() || fromPath;
 };
 
 const normalizeHeroConfig = (raw: any) => {
@@ -169,51 +134,162 @@ const normalizeHeroConfig = (raw: any) => {
   };
 };
 
+const normalizeTactics = (source: any[]) => {
+  return source.map((raid: any) => ({
+    ...raid,
+    bosses: (raid.bosses || []).map((boss: any) => {
+      let description = boss.description;
+      if (typeof description !== 'string') {
+        description = JSON.stringify([{
+          id: Math.random(),
+          type: 'text',
+          content: 'Kérlek szerkeszd ezt a taktikát az Admin felületen!'
+        }]);
+      }
+      return { ...boss, description };
+    })
+  }));
+};
+
 function App() {
-  const [view, setView] = useState<View>(() => pathToView(window.location.pathname));
+  const [view, setView] = useState<View>(() => getInitialView());
   const [showDevNotice, setShowDevNotice] = useState(true);
   const [discordAuth, setDiscordAuth] = useState<DiscordAuthState>({ status: 'idle', user: null });
-  
-  // Centralized State for Admin Editing
-  const [officers, setOfficers] = useState(() => loadStoredOfficers() || initialOfficers);
-  const [progress, setProgress] = useState(() => loadStoredProgress() || initialProgress);
-  const [consumables, setConsumables] = useState(() => loadStoredConsumables() || initialConsumables);
-  const [epValues, setEpValues] = useState(initialEpValues);
-  const [rules, setRules] = useState([
-    { title: "Viselkedés", description: "Légy megértő és tisztelettudó klántársaiddal. A jó hangulat megtartása mindenkinek közös érdeke." },
-    { title: "Kommunikáció", description: "A káromkodást mellőzzük a klán chaten. Próbálj kulturáltan kommunikálni." },
-    { title: "Aktivitás", description: "Próbálj aktív lenni. Legalább heti 1 klán raiden való részvétel elvárt minden tagtól." },
-    { title: "Discord Fegyelem", description: "Raid közben a Discord használata kötelező. Boss harcok alatt csak a Raid Leader beszél." },
-    { title: "Felkészülés", description: "A raidekre igyekezz a Consume listát átnézni és használni." },
-    { title: "Reputáció", description: "Zul'gurub (Zandalar Tribe) reputációt Revered szintre kell felhúzni." },
-  ]);
+  const [contentError, setContentError] = useState<string | null>(null);
 
-  const [heroConfig, setHeroConfig] = useState(() => normalizeHeroConfig(loadStoredHeroConfig() || DEFAULT_HERO_CONFIG));
+  const [officers, setOfficers] = useState(() => initialOfficers);
+  const [progress, setProgress] = useState(() => initialProgress);
+  const [consumables, setConsumables] = useState(() => initialConsumables);
+  const [epValues, setEpValues] = useState(() => initialEpValues);
+  const [rules, setRules] = useState(() => DEFAULT_RULES);
+  const [heroConfig, setHeroConfig] = useState(() => normalizeHeroConfig(DEFAULT_HERO_CONFIG));
+  const [guides, setGuides] = useState(() => DEFAULT_GUIDES);
+  const [tactics, setTactics] = useState(() => normalizeTactics(rawInitialTactics as any[]));
 
-  const [guides, setGuides] = useState(() => loadStoredGuides() || [
-    { id: 1, title: "Obsidian Mining Tipp", category: "Szakmák", content: "Bármely fajjal elérhető a +10 Mining skill, ami nélkülözhetetlen az Obsidian bányászatához. Szükséges hozzá: Enchant Gloves (+5), Goblin Mining Pick (+5).", date: "2024.03.10", badge: "Pro Tipp" },
-    { id: 2, title: "Level 18 Mount", category: "Szintezés", content: "Keresd Silas Darkmoon-t a Darkmoon Faire idején. A Torta's Egg quest teljesítése után már 18-as szinten saját hátasod lehet!", date: "2024.03.11" },
-    { id: 3, title: "Sátrazás és Rested XP", category: "Túlélés", content: "A Survival secondary skill a kulcs a gyors szintezéshez. A sátrak alatt 3x gyorsabban gyűlik a Rested XP városokban.", date: "2024.03.12", badge: "Fontos" },
-  ]);
+  useEffect(() => {
+    let mounted = true;
+    const loadRemoteContent = async () => {
+      try {
+        const snapshot = await fetchContentSnapshot();
+        if (!mounted) return;
 
-  const [tactics, setTactics] = useState(() => {
-    const stored = loadStoredTactics();
-    const source = stored || rawInitialTactics;
-    return source.map((raid: any) => ({
-      ...raid,
-      bosses: (raid.bosses || []).map((boss: any) => {
-        let description = boss.description;
-        if (typeof description !== 'string') {
-            description = JSON.stringify([{ 
-                id: Math.random(), 
-                type: 'text', 
-                content: "Kérlek szerkeszd ezt a taktikát az Admin felületen!" 
-            }]);
+        const seeds: Array<{ key: ContentKey; value: unknown }> = [];
+
+        if (Array.isArray(snapshot.officers)) {
+          setOfficers(snapshot.officers as any);
+        } else {
+          seeds.push({ key: 'officers', value: initialOfficers });
         }
-        return { ...boss, description };
+
+        if (Array.isArray(snapshot.progress)) {
+          setProgress(snapshot.progress as any);
+        } else {
+          seeds.push({ key: 'progress', value: initialProgress });
+        }
+
+        if (Array.isArray(snapshot.consumables)) {
+          setConsumables(snapshot.consumables as any);
+        } else {
+          seeds.push({ key: 'consumables', value: initialConsumables });
+        }
+
+        if (Array.isArray(snapshot.epValues)) {
+          setEpValues(snapshot.epValues as any);
+        } else {
+          seeds.push({ key: 'epValues', value: initialEpValues });
+        }
+
+        if (Array.isArray(snapshot.rules)) {
+          setRules(snapshot.rules as any);
+        } else {
+          seeds.push({ key: 'rules', value: DEFAULT_RULES });
+        }
+
+        if (Array.isArray(snapshot.guides)) {
+          setGuides(snapshot.guides as any);
+        } else {
+          seeds.push({ key: 'guides', value: DEFAULT_GUIDES });
+        }
+
+        if (Array.isArray(snapshot.tactics)) {
+          setTactics(normalizeTactics(snapshot.tactics as any[]));
+        } else {
+          seeds.push({ key: 'tactics', value: normalizeTactics(rawInitialTactics as any[]) });
+        }
+
+        if (snapshot.heroConfig && typeof snapshot.heroConfig === 'object' && !Array.isArray(snapshot.heroConfig)) {
+          setHeroConfig(normalizeHeroConfig(snapshot.heroConfig));
+        } else {
+          seeds.push({ key: 'heroConfig', value: normalizeHeroConfig(DEFAULT_HERO_CONFIG) });
+        }
+
+        if (seeds.length) {
+          Promise.allSettled(seeds.map((item) => saveContentSection(item.key, item.value)))
+            .catch(() => undefined);
+        }
+      } catch (err) {
+        if (!mounted) return;
+        setContentError(err instanceof Error ? err.message : 'Nem sikerült betölteni az adatbázis tartalmát.');
+      }
+    };
+
+    loadRemoteContent();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const persistSection = useCallback((key: ContentKey, value: unknown) => {
+    saveContentSection(key, value)
+      .then(() => {
+        setContentError(null);
       })
-    }));
-  });
+      .catch((err) => {
+        setContentError(err instanceof Error ? err.message : 'Mentési hiba történt.');
+      });
+  }, []);
+
+  const updateOfficers = useCallback((value: any) => {
+    setOfficers(value);
+    persistSection('officers', value);
+  }, [persistSection]);
+
+  const updateProgress = useCallback((value: any) => {
+    setProgress(value);
+    persistSection('progress', value);
+  }, [persistSection]);
+
+  const updateConsumables = useCallback((value: any) => {
+    setConsumables(value);
+    persistSection('consumables', value);
+  }, [persistSection]);
+
+  const updateTactics = useCallback((value: any) => {
+    const normalized = normalizeTactics(Array.isArray(value) ? value : []);
+    setTactics(normalized);
+    persistSection('tactics', normalized);
+  }, [persistSection]);
+
+  const updateEpValues = useCallback((value: any) => {
+    setEpValues(value);
+    persistSection('epValues', value);
+  }, [persistSection]);
+
+  const updateRules = useCallback((value: any) => {
+    setRules(value);
+    persistSection('rules', value);
+  }, [persistSection]);
+
+  const updateGuides = useCallback((value: any) => {
+    setGuides(value);
+    persistSection('guides', value);
+  }, [persistSection]);
+
+  const updateHeroConfig = useCallback((value: any) => {
+    const normalized = normalizeHeroConfig(value);
+    setHeroConfig(normalized);
+    persistSection('heroConfig', normalized);
+  }, [persistSection]);
 
   useEffect(() => {
     const stored = loadDiscordAuth();
@@ -221,10 +297,16 @@ function App() {
       setDiscordAuth(stored);
     }
 
-    const hasCallback =
-      window.location.search.includes('code=') ||
-      window.location.search.includes('error=') ||
-      window.location.hash.includes('access_token=');
+    const queryParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace('#', ''));
+    const hasCallback = Boolean(
+      queryParams.get('code')
+      || queryParams.get('error')
+      || queryParams.get('state')
+      || hashParams.get('access_token')
+      || hashParams.get('error')
+      || hashParams.get('state')
+    );
 
     if (!hasCallback) {
       return;
@@ -239,13 +321,35 @@ function App() {
     }));
 
     let mounted = true;
-    completeDiscordLogin()
+    const callbackWithTimeout = Promise.race([
+      completeDiscordLogin(),
+      new Promise<null>((resolve) => {
+        window.setTimeout(() => resolve(null), DISCORD_CALLBACK_TIMEOUT_MS);
+      })
+    ]);
+
+    callbackWithTimeout
       .then((result) => {
-        if (!mounted || !result) {
+        if (!mounted) {
+          return;
+        }
+        if (!result) {
+          const fallbackAuth = loadDiscordAuth();
+          if (fallbackAuth) {
+            setDiscordAuth(fallbackAuth);
+            setView('admin');
+          } else {
+            setDiscordAuth({
+              status: 'error',
+              user: null,
+              error: 'Discord login callback nem tartalmazott ervenyes tokent.'
+            });
+          }
+          clearDiscordCallbackParams();
           return;
         }
         setDiscordAuth(result.auth);
-        const targetView = (result.returnTo || 'admin') as any;
+        const targetView = (result.returnTo || 'admin') as View;
         setView(targetView);
         clearDiscordCallbackParams();
       })
@@ -267,61 +371,33 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (discordAuth.status !== 'loading') {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      const stored = loadDiscordAuth();
+      if (stored) {
+        setDiscordAuth(stored);
+        setView('admin');
+        clearDiscordCallbackParams();
+      }
+    }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [discordAuth.status]);
+
+  useEffect(() => {
     window.scrollTo(0, 0);
   }, [view]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(CONSUMABLES_STORAGE_KEY, JSON.stringify(consumables));
-    } catch {
-      // ignore storage write errors
-    }
-  }, [consumables]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(TACTICS_STORAGE_KEY, JSON.stringify(tactics));
-    } catch {
-      // ignore storage write errors
-    }
-  }, [tactics]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(progress));
-    } catch {
-      // ignore storage write errors
-    }
-  }, [progress]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(HERO_STORAGE_KEY, JSON.stringify(heroConfig));
-    } catch {
-      // ignore storage write errors
-    }
-  }, [heroConfig]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(OFFICERS_STORAGE_KEY, JSON.stringify(officers));
-    } catch {
-      // ignore storage write errors
-    }
-  }, [officers]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(GUIDES_STORAGE_KEY, JSON.stringify(guides));
-    } catch {
-      // ignore storage write errors
-    }
-  }, [guides]);
 
   useEffect(() => {
     const targetPath = viewToPath[view];
     if (window.location.pathname !== targetPath) {
       window.history.pushState({}, '', targetPath);
+    }
+    try {
+      localStorage.setItem(VIEW_STORAGE_KEY, view);
+    } catch {
+      // ignore storage write errors
     }
   }, [view]);
 
@@ -356,6 +432,12 @@ function App() {
 
   return (
     <div className="min-h-screen text-slate-200 bg-slate-950 selection:bg-[#c8aa6e] selection:text-black">
+      {contentError && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[400] px-4 py-2 bg-red-900/85 border border-red-500/50 text-red-100 text-[10px] uppercase tracking-widest font-bold rounded">
+          API/DB hiba: {contentError}
+        </div>
+      )}
+
       {view !== 'admin' && <Header setView={navigateToView} currentView={view} />}
 
       {showDevNotice && view !== 'admin' && (
@@ -404,7 +486,7 @@ function App() {
           </div>
         </div>
       )}
-      
+
       <main>
         {view === 'home' && (
           <>
@@ -451,21 +533,29 @@ function App() {
           </div>
         )}
         {view === 'admin' && (
-          <AdminDashboard 
+          <AdminDashboard
             setView={navigateToView}
             data={{ officers, progress, consumables, tactics, epValues, rules, guides, heroConfig }}
-            updaters={{ setOfficers, setProgress, setConsumables, setTactics, setEpValues, setRules, setGuides, setHeroConfig }}
+            updaters={{
+              setOfficers: updateOfficers,
+              setProgress: updateProgress,
+              setConsumables: updateConsumables,
+              setTactics: updateTactics,
+              setEpValues: updateEpValues,
+              setRules: updateRules,
+              setGuides: updateGuides,
+              setHeroConfig: updateHeroConfig
+            }}
             discordAuth={discordAuth}
             onDiscordLogin={handleDiscordLogin}
             onDiscordLogout={handleDiscordLogout}
           />
         )}
       </main>
-      
+
       {view !== 'admin' && <Footer setView={navigateToView} />}
     </div>
   );
 }
 
 export default App;
-

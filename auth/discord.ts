@@ -23,10 +23,12 @@ type StoredAuth = {
 const AUTH_STORAGE_KEY = 'discord_auth_v1';
 const OAUTH_STATE_KEY = 'discord_oauth_state';
 const OAUTH_RETURN_KEY = 'discord_oauth_return_to';
+const CALLBACK_CACHE_TTL_MS = 10_000;
 
 const DISCORD_AUTHORIZE_URL = 'https://discord.com/api/oauth2/authorize';
 const DISCORD_API_BASE = 'https://discord.com/api';
 const DEFAULT_SCOPES = 'identify';
+const callbackInFlight = new Map<string, Promise<{ auth: DiscordAuthState; returnTo?: string } | null>>();
 
 const getEnv = (key: string, fallback = '') => {
   const value = (import.meta as any).env?.[key];
@@ -166,6 +168,13 @@ export const clearDiscordCallbackParams = () => {
 };
 
 export const completeDiscordLogin = async (): Promise<{ auth: DiscordAuthState; returnTo?: string } | null> => {
+  const callbackSignature = `${window.location.search}|${window.location.hash}`;
+  const existing = callbackInFlight.get(callbackSignature);
+  if (existing) {
+    return existing;
+  }
+
+  const run = (async (): Promise<{ auth: DiscordAuthState; returnTo?: string } | null> => {
   const hashParams = new URLSearchParams(window.location.hash.replace('#', ''));
   const queryParams = new URLSearchParams(window.location.search);
 
@@ -233,4 +242,12 @@ export const completeDiscordLogin = async (): Promise<{ auth: DiscordAuthState; 
   }
 
   return null;
+  })();
+
+  callbackInFlight.set(callbackSignature, run);
+  window.setTimeout(() => {
+    callbackInFlight.delete(callbackSignature);
+  }, CALLBACK_CACHE_TTL_MS);
+
+  return run;
 };
