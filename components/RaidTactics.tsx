@@ -27,13 +27,40 @@ const RaidTactics: React.FC<{ data: any[] }> = ({ data }) => {
     return (match && match[2].length === 11) ? match[2] : null;
   };
 
+  const LEGACY_FONT_SIZE_MAP: Record<string, number> = {
+    sm: 14,
+    md: 16,
+    lg: 20
+  };
+
+  const normalizeBlockFontSizePx = (value: any, legacyValue?: any) => {
+    const direct = Number(value);
+    if (Number.isFinite(direct)) {
+      return Math.max(10, Math.min(64, Math.round(direct)));
+    }
+
+    if (typeof value === 'string') {
+      const parsed = Number.parseInt(value, 10);
+      if (Number.isFinite(parsed)) {
+        return Math.max(10, Math.min(64, parsed));
+      }
+    }
+
+    return LEGACY_FONT_SIZE_MAP[String(legacyValue || '').toLowerCase()] || 16;
+  };
+
+  const getBlockTextStyle = (value: any, legacyValue?: any): React.CSSProperties => ({
+    fontSize: `${normalizeBlockFontSizePx(value, legacyValue)}px`,
+    lineHeight: 1.65
+  });
+
   const normalizeHref = (url: string) => {
     const raw = String(url || '').trim();
     if (!raw) return '';
     return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
   };
 
-  const INLINE_LINK_PATTERN = /\[([^\]]+)\]\(([^)]+)\)/g;
+  const INLINE_TOKEN_PATTERN = /\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|__([^_]+)__|\*([^*]+)\*/g;
 
   const renderTextChunkWithLineBreaks = (text: string, keyPrefix: string) => {
     const nodes: React.ReactNode[] = [];
@@ -47,50 +74,151 @@ const RaidTactics: React.FC<{ data: any[] }> = ({ data }) => {
     return nodes;
   };
 
-  const renderInlineLinks = (text: string) => {
+  const renderInlineRichText = (text: string, keyPrefix = 'inline') => {
     const content = String(text || '');
     const nodes: React.ReactNode[] = [];
     let lastIndex = 0;
     let nodeIndex = 0;
 
-    INLINE_LINK_PATTERN.lastIndex = 0;
-    let match = INLINE_LINK_PATTERN.exec(content);
+    INLINE_TOKEN_PATTERN.lastIndex = 0;
+    let match = INLINE_TOKEN_PATTERN.exec(content);
     while (match) {
-      const [fullMatch, label, rawUrl] = match;
+      const [fullMatch, label, rawUrl, boldText, underlineText, italicText] = match;
       const startIndex = match.index;
 
       if (startIndex > lastIndex) {
-        nodes.push(...renderTextChunkWithLineBreaks(content.slice(lastIndex, startIndex), `text-${nodeIndex}`));
+        nodes.push(...renderTextChunkWithLineBreaks(content.slice(lastIndex, startIndex), `${keyPrefix}-text-${nodeIndex}`));
         nodeIndex += 1;
       }
 
-      const href = normalizeHref(rawUrl);
-      if (label.trim() && href) {
+      if (label && rawUrl) {
+        const href = normalizeHref(rawUrl);
+        if (label.trim() && href) {
+          nodes.push(
+            <a
+              key={`${keyPrefix}-link-${nodeIndex}`}
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[#c8aa6e] underline underline-offset-2 hover:text-white transition-colors break-words"
+            >
+              {label}
+            </a>
+          );
+        } else {
+          nodes.push(...renderTextChunkWithLineBreaks(fullMatch, `${keyPrefix}-raw-${nodeIndex}`));
+        }
+      } else if (boldText) {
         nodes.push(
-          <a
-            key={`link-${nodeIndex}`}
-            href={href}
-            target="_blank"
-            rel="noreferrer"
-            className="text-[#c8aa6e] underline underline-offset-2 hover:text-white transition-colors break-words"
-          >
-            {label}
-          </a>
+          <strong key={`${keyPrefix}-bold-${nodeIndex}`} className="font-bold text-white">
+            {boldText}
+          </strong>
+        );
+      } else if (underlineText) {
+        nodes.push(
+          <span key={`${keyPrefix}-underline-${nodeIndex}`} className="underline decoration-[#c8aa6e]/70 underline-offset-2">
+            {underlineText}
+          </span>
+        );
+      } else if (italicText) {
+        nodes.push(
+          <em key={`${keyPrefix}-italic-${nodeIndex}`} className="italic text-neutral-200">
+            {italicText}
+          </em>
         );
       } else {
-        nodes.push(...renderTextChunkWithLineBreaks(fullMatch, `raw-${nodeIndex}`));
+        nodes.push(...renderTextChunkWithLineBreaks(fullMatch, `${keyPrefix}-raw-${nodeIndex}`));
       }
 
       nodeIndex += 1;
       lastIndex = startIndex + fullMatch.length;
-      match = INLINE_LINK_PATTERN.exec(content);
+      match = INLINE_TOKEN_PATTERN.exec(content);
     }
 
     if (lastIndex < content.length) {
-      nodes.push(...renderTextChunkWithLineBreaks(content.slice(lastIndex), `tail-${nodeIndex}`));
+      nodes.push(...renderTextChunkWithLineBreaks(content.slice(lastIndex), `${keyPrefix}-tail-${nodeIndex}`));
     }
 
     return nodes;
+  };
+
+  const renderRichTextContent = (raw: string, className: string, keyPrefix: string, style?: React.CSSProperties) => {
+    const lines = String(raw || '').split(/\r?\n/);
+    const nodes: React.ReactNode[] = [];
+    let idx = 0;
+    let blockIndex = 0;
+
+    while (idx < lines.length) {
+      const current = lines[idx];
+      const unorderedMatch = current.match(/^\s*-\s+(.+)$/);
+      const orderedMatch = current.match(/^\s*\d+\.\s+(.+)$/);
+
+      if (unorderedMatch) {
+        const items: string[] = [];
+        while (idx < lines.length) {
+          const match = lines[idx].match(/^\s*-\s+(.+)$/);
+          if (!match) break;
+          items.push(match[1]);
+          idx += 1;
+        }
+        nodes.push(
+          <ul key={`${keyPrefix}-ul-${blockIndex}`} className={`${className} list-disc list-inside space-y-1`} style={style}>
+            {items.map((item, itemIdx) => (
+              <li key={`${keyPrefix}-ul-item-${blockIndex}-${itemIdx}`}>
+                {renderInlineRichText(item, `${keyPrefix}-ul-inline-${blockIndex}-${itemIdx}`)}
+              </li>
+            ))}
+          </ul>
+        );
+        blockIndex += 1;
+        continue;
+      }
+
+      if (orderedMatch) {
+        const items: string[] = [];
+        while (idx < lines.length) {
+          const match = lines[idx].match(/^\s*\d+\.\s+(.+)$/);
+          if (!match) break;
+          items.push(match[1]);
+          idx += 1;
+        }
+        nodes.push(
+          <ol key={`${keyPrefix}-ol-${blockIndex}`} className={`${className} list-decimal list-inside space-y-1`} style={style}>
+            {items.map((item, itemIdx) => (
+              <li key={`${keyPrefix}-ol-item-${blockIndex}-${itemIdx}`}>
+                {renderInlineRichText(item, `${keyPrefix}-ol-inline-${blockIndex}-${itemIdx}`)}
+              </li>
+            ))}
+          </ol>
+        );
+        blockIndex += 1;
+        continue;
+      }
+
+      if (!current.trim()) {
+        idx += 1;
+        continue;
+      }
+
+      const paragraphLines: string[] = [];
+      while (idx < lines.length) {
+        const line = lines[idx];
+        if (!line.trim()) break;
+        if (/^\s*-\s+/.test(line) || /^\s*\d+\.\s+/.test(line)) break;
+        paragraphLines.push(line);
+        idx += 1;
+      }
+
+      const paragraphText = paragraphLines.join('\n');
+      nodes.push(
+        <p key={`${keyPrefix}-p-${blockIndex}`} className={className} style={style}>
+          {renderInlineRichText(paragraphText, `${keyPrefix}-p-inline-${blockIndex}`)}
+        </p>
+      );
+      blockIndex += 1;
+    }
+
+    return <div className="space-y-3">{nodes}</div>;
   };
 
   const parseGeneralDescriptionBlocks = (raw: string) => {
@@ -166,9 +294,13 @@ const RaidTactics: React.FC<{ data: any[] }> = ({ data }) => {
           }
 
           return (
-            <p key={`text-${idx}`} className="text-neutral-400 font-serif leading-relaxed italic text-lg break-words">
-              {renderInlineLinks(block.content || '')}
-            </p>
+            <div key={`text-${idx}`} className="break-words">
+              {renderRichTextContent(
+                block.content || '',
+                'text-neutral-400 font-serif leading-relaxed italic text-lg',
+                `raid-general-${idx}`
+              )}
+            </div>
           );
         })}
       </div>
@@ -189,7 +321,14 @@ const RaidTactics: React.FC<{ data: any[] }> = ({ data }) => {
             {blocks.map((block: any, idx: number) => (
                 <div key={idx} className="animate-fade-in">
                     {block.type === 'text' && (
-                        <p className="text-neutral-300 font-serif text-lg leading-relaxed">{block.content}</p>
+                        <div className="break-words">
+                            {renderRichTextContent(
+                                block.content || '',
+                                'text-neutral-300 font-serif leading-relaxed',
+                                `block-text-${idx}`,
+                                getBlockTextStyle(block?.fontSizePx, block?.fontSize)
+                            )}
+                        </div>
                     )}
 
                     {block.type === 'mechanic' && (
@@ -198,7 +337,14 @@ const RaidTactics: React.FC<{ data: any[] }> = ({ data }) => {
                                 <Trophy className="text-[#c8aa6e]" size={24} />
                                 <h5 className="cinzel-font text-xl font-bold text-white uppercase tracking-wider">{block.title}</h5>
                             </div>
-                            <p className="text-neutral-400 font-serif leading-relaxed">{block.content}</p>
+                            <div className="break-words">
+                              {renderRichTextContent(
+                                block.content || '',
+                                'text-neutral-400 font-serif leading-relaxed',
+                                `block-mechanic-${idx}`,
+                                getBlockTextStyle(block?.fontSizePx, block?.fontSize)
+                              )}
+                            </div>
                         </div>
                     )}
 
@@ -207,7 +353,14 @@ const RaidTactics: React.FC<{ data: any[] }> = ({ data }) => {
                             <AlertTriangle className="text-red-500 shrink-0" size={32} />
                             <div>
                                 <h5 className="text-red-500 cinzel-font font-bold uppercase tracking-widest mb-2">Vigyázat!</h5>
-                                <p className="text-red-200/70 font-serif leading-relaxed italic">{block.content}</p>
+                                <div className="break-words">
+                                  {renderRichTextContent(
+                                    block.content || '',
+                                    'text-red-200/70 font-serif leading-relaxed italic',
+                                    `block-warning-${idx}`,
+                                    getBlockTextStyle(block?.fontSizePx, block?.fontSize)
+                                  )}
+                                </div>
                             </div>
                         </div>
                     )}
@@ -228,7 +381,14 @@ const RaidTactics: React.FC<{ data: any[] }> = ({ data }) => {
                                     {block.title || (block.type.toUpperCase() + ' FELADAT')}
                                 </h5>
                             </div>
-                            <p className="text-neutral-400 font-serif leading-relaxed italic">{block.content}</p>
+                            <div className="break-words">
+                              {renderRichTextContent(
+                                block.content || '',
+                                'text-neutral-400 font-serif leading-relaxed italic',
+                                `block-role-${idx}`,
+                                getBlockTextStyle(block?.fontSizePx, block?.fontSize)
+                              )}
+                            </div>
                         </div>
                     )}
 

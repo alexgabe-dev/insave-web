@@ -5,7 +5,7 @@ import {
   LogOut, ChevronRight, LayoutDashboard, Swords, ListChecks, 
   Edit3, ArrowUp, ArrowDown, Sword, Image as ImageIcon, Video, 
   Monitor, ScrollText, CheckCircle, Shield, ShieldCheck, Heart, Wand2, Target, BookOpen,
-  AlertTriangle, PlayCircle, Globe, Zap, ExternalLink, Link2, X,
+  AlertTriangle, PlayCircle, Globe, Zap, ExternalLink, Link2, Bold, Italic, Underline, List, ListOrdered, Type, X,
   Star, Lock, MessageSquare, ArrowLeft, GripVertical
 } from 'lucide-react';
 import { DiscordAuthState, getDiscordAvatarUrl, getDiscordDisplayName } from '../../auth/discord';
@@ -1324,6 +1324,8 @@ const TacticsEditor = ({ tactics, onSave }: any) => {
     url: string;
   } | null>(null);
   const raidDescriptionRef = useRef<HTMLTextAreaElement | null>(null);
+  const blockContentRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
+  const [fontSizeDrafts, setFontSizeDrafts] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setLocal(JSON.parse(JSON.stringify(tactics || [])));
@@ -1333,6 +1335,7 @@ const TacticsEditor = ({ tactics, onSave }: any) => {
     setHasUnsavedChanges(false);
     setRaidLinkEditor(null);
     setRaidYoutubeEditor(null);
+    setFontSizeDrafts({});
   }, [tactics]);
 
   useEffect(() => {
@@ -1361,14 +1364,19 @@ const TacticsEditor = ({ tactics, onSave }: any) => {
   useEffect(() => {
     setRaidLinkEditor(null);
     setRaidYoutubeEditor(null);
+    setFontSizeDrafts({});
   }, [selRaid]);
+
+  useEffect(() => {
+    setFontSizeDrafts({});
+  }, [selBoss]);
 
   const markDirty = () => setHasUnsavedChanges(true);
   const cloneLocal = () => JSON.parse(JSON.stringify(local));
   const makeId = (prefix: string) => `${prefix}-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 
   const parseBlocks = (raw: any) => {
-    const fallback = [{ id: makeId('block'), type: 'text', content: typeof raw === 'string' ? raw : '' }];
+    const fallback = [{ id: makeId('block'), type: 'text', content: typeof raw === 'string' ? raw : '', fontSizePx: 16 }];
     if (typeof raw !== 'string') return fallback;
     try {
       const parsed = JSON.parse(raw);
@@ -1379,7 +1387,8 @@ const TacticsEditor = ({ tactics, onSave }: any) => {
         title: b?.title || '',
         content: b?.content || '',
         mediaType: b?.mediaType || 'image',
-        url: b?.url || ''
+        url: b?.url || '',
+        fontSizePx: normalizeBlockFontSizePx(b?.fontSizePx, b?.fontSize)
       }));
     } catch {
       return fallback;
@@ -1515,7 +1524,7 @@ const TacticsEditor = ({ tactics, onSave }: any) => {
     next[selRaid].bosses.push({
       id: makeId('boss'),
       name: `${next[selRaid].bosses.length + 1}. Uj Boss`,
-      description: JSON.stringify([{ id: makeId('block'), type: 'text', content: '' }])
+      description: JSON.stringify([{ id: makeId('block'), type: 'text', content: '', fontSizePx: 16 }])
     });
     setLocal(next);
     setSelBoss(next[selRaid].bosses.length - 1);
@@ -1551,7 +1560,8 @@ const TacticsEditor = ({ tactics, onSave }: any) => {
       title: '',
       content: '',
       mediaType: 'image',
-      url: ''
+      url: '',
+      fontSizePx: 16
     };
     if (type === 'warning') defaultBlock.title = 'Vigyazat';
     if (type === 'mechanic') defaultBlock.title = 'Mechanika';
@@ -1650,6 +1660,116 @@ const TacticsEditor = ({ tactics, onSave }: any) => {
       chip: 'bg-fuchsia-500/15 border-fuchsia-400/40 text-fuchsia-300',
       panel: 'border-fuchsia-500/25 bg-fuchsia-500/5'
     }
+  };
+
+  const FONT_SIZE_SUGGESTIONS = [12, 14, 16, 18, 20, 24, 28, 32];
+  const LEGACY_FONT_SIZE_MAP: Record<string, number> = {
+    sm: 14,
+    md: 16,
+    lg: 20
+  };
+
+  const normalizeBlockFontSizePx = (value: any, legacyValue?: any) => {
+    const direct = Number(value);
+    if (Number.isFinite(direct)) {
+      return Math.max(10, Math.min(64, Math.round(direct)));
+    }
+
+    if (typeof value === 'string') {
+      const parsed = Number.parseInt(value, 10);
+      if (Number.isFinite(parsed)) {
+        return Math.max(10, Math.min(64, parsed));
+      }
+    }
+
+    const mapped = LEGACY_FONT_SIZE_MAP[String(legacyValue || '').toLowerCase()] || 16;
+    return Math.max(10, Math.min(64, mapped));
+  };
+
+  const getEditorFontStyle = (value: any, legacyValue?: any) => ({
+    fontSize: `${normalizeBlockFontSizePx(value, legacyValue)}px`,
+    lineHeight: 1.65
+  });
+
+  const setBlockFontSizePxDraft = (editorKey: string, rawValue: string) => {
+    setFontSizeDrafts((prev) => ({ ...prev, [editorKey]: rawValue }));
+  };
+
+  const commitBlockFontSizePx = (blockIdx: number, editorKey: string) => {
+    const draft = fontSizeDrafts[editorKey];
+    const cleaned = String(draft ?? '').replace(/[^\d]/g, '');
+    const parsed = Number.parseInt(cleaned, 10);
+    if (Number.isFinite(parsed)) {
+      updateBlock(blockIdx, { fontSizePx: Math.max(10, Math.min(64, parsed)) });
+    }
+    setFontSizeDrafts((prev) => {
+      const next = { ...prev };
+      delete next[editorKey];
+      return next;
+    });
+  };
+
+  const getBlockContentEditorKey = (block: any, idx: number) => String(block?.id || `block-${idx}`);
+
+  const applyTextWrapToBlock = (
+    blockIdx: number,
+    wrapStart: string,
+    wrapEnd = wrapStart,
+    placeholder = 'szoveg'
+  ) => {
+    const parsedBlocks = parseBlocks(selectedBoss?.description);
+    const block = parsedBlocks[blockIdx];
+    if (!block) return;
+    const editorKey = getBlockContentEditorKey(block, blockIdx);
+    const textarea = blockContentRefs.current[editorKey];
+    const content = String(block.content || '');
+    const selectionStart = textarea?.selectionStart ?? content.length;
+    const selectionEnd = textarea?.selectionEnd ?? content.length;
+    const selected = content.slice(selectionStart, selectionEnd);
+    const text = selected || placeholder;
+    const nextValue = `${content.slice(0, selectionStart)}${wrapStart}${text}${wrapEnd}${content.slice(selectionEnd)}`;
+    const nextStart = selectionStart + wrapStart.length;
+    const nextEnd = nextStart + text.length;
+
+    updateBlock(blockIdx, { content: nextValue });
+    setTimeout(() => {
+      const nextTextarea = blockContentRefs.current[editorKey];
+      if (!nextTextarea) return;
+      nextTextarea.focus();
+      nextTextarea.setSelectionRange(nextStart, nextEnd);
+    }, 0);
+  };
+
+  const applyListToBlock = (blockIdx: number, ordered: boolean) => {
+    const parsedBlocks = parseBlocks(selectedBoss?.description);
+    const block = parsedBlocks[blockIdx];
+    if (!block) return;
+    const editorKey = getBlockContentEditorKey(block, blockIdx);
+    const textarea = blockContentRefs.current[editorKey];
+    const content = String(block.content || '');
+    const selectionStart = textarea?.selectionStart ?? content.length;
+    const selectionEnd = textarea?.selectionEnd ?? content.length;
+    const selected = content.slice(selectionStart, selectionEnd);
+    const source = selected || '';
+    const lines = source.split('\n');
+    const nextLines = lines.map((line, lineIdx) => {
+      const trimmed = line.trimStart();
+      const indent = line.slice(0, line.length - trimmed.length);
+      const prefix = ordered ? `${lineIdx + 1}. ` : '- ';
+      return `${indent}${prefix}${trimmed || 'elem'}`;
+    });
+    const injected = nextLines.join('\n');
+    const nextValue = `${content.slice(0, selectionStart)}${injected}${content.slice(selectionEnd)}`;
+    const nextSelectionStart = selectionStart;
+    const nextSelectionEnd = selectionStart + injected.length;
+
+    updateBlock(blockIdx, { content: nextValue });
+    setTimeout(() => {
+      const nextTextarea = blockContentRefs.current[editorKey];
+      if (!nextTextarea) return;
+      nextTextarea.focus();
+      nextTextarea.setSelectionRange(nextSelectionStart, nextSelectionEnd);
+    }, 0);
   };
 
   const blockActionTypes = ['text', 'mechanic', 'warning', 'tank', 'healer', 'dps', 'media'];
@@ -2121,11 +2241,97 @@ const TacticsEditor = ({ tactics, onSave }: any) => {
                     ) : (
                       <label className="space-y-1 block">
                         <span className="text-[9px] uppercase tracking-widest text-neutral-600 font-bold">Tartalom</span>
-                        <textarea
-                          value={block.content || ''}
-                          onChange={(e) => updateBlock(idx, { content: e.target.value })}
-                          className="w-full bg-black border border-white/10 p-3 rounded text-sm text-neutral-300 min-h-[110px] outline-none focus:border-[#c8aa6e]"
-                        />
+                        <div className="border border-white/10 rounded-sm overflow-hidden bg-[#101114]">
+                          <div className="flex flex-wrap items-center gap-1 px-2 py-2 border-b border-white/10 bg-[#12141b]">
+                            <button
+                              type="button"
+                              onClick={() => applyTextWrapToBlock(idx, '**')}
+                              className="inline-flex items-center justify-center w-8 h-8 border border-transparent text-neutral-400 hover:text-white hover:border-white/20 rounded-sm transition-colors"
+                              aria-label="Felkover"
+                              title="Felkover"
+                            >
+                              <Bold size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => applyTextWrapToBlock(idx, '*')}
+                              className="inline-flex items-center justify-center w-8 h-8 border border-transparent text-neutral-400 hover:text-white hover:border-white/20 rounded-sm transition-colors"
+                              aria-label="Dolt"
+                              title="Dolt"
+                            >
+                              <Italic size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => applyTextWrapToBlock(idx, '__')}
+                              className="inline-flex items-center justify-center w-8 h-8 border border-transparent text-neutral-400 hover:text-white hover:border-white/20 rounded-sm transition-colors"
+                              aria-label="Alahuzott"
+                              title="Alahuzott"
+                            >
+                              <Underline size={14} />
+                            </button>
+                            <span className="h-5 w-px bg-white/10 mx-1" />
+                            <button
+                              type="button"
+                              onClick={() => applyListToBlock(idx, false)}
+                              className="inline-flex items-center justify-center w-8 h-8 border border-transparent text-neutral-400 hover:text-white hover:border-white/20 rounded-sm transition-colors"
+                              aria-label="Lista"
+                              title="Lista"
+                            >
+                              <List size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => applyListToBlock(idx, true)}
+                              className="inline-flex items-center justify-center w-8 h-8 border border-transparent text-neutral-400 hover:text-white hover:border-white/20 rounded-sm transition-colors"
+                              aria-label="Szamozott lista"
+                              title="Szamozott lista"
+                            >
+                              <ListOrdered size={14} />
+                            </button>
+                            <span className="h-5 w-px bg-white/10 mx-1" />
+                            <span className="inline-flex items-center justify-center w-8 h-8 text-neutral-600" title="Betumeret">
+                              <Type size={14} />
+                            </span>
+                            <input
+                              list={`font-size-options-${idx}`}
+                              value={fontSizeDrafts[getBlockContentEditorKey(block, idx)] ?? String(normalizeBlockFontSizePx(block.fontSizePx, block.fontSize))}
+                              onChange={(e) => setBlockFontSizePxDraft(getBlockContentEditorKey(block, idx), e.target.value)}
+                              onBlur={() => commitBlockFontSizePx(idx, getBlockContentEditorKey(block, idx))}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  commitBlockFontSizePx(idx, getBlockContentEditorKey(block, idx));
+                                }
+                                if (e.key === 'Escape') {
+                                  setFontSizeDrafts((prev) => {
+                                    const next = { ...prev };
+                                    delete next[getBlockContentEditorKey(block, idx)];
+                                    return next;
+                                  });
+                                  (e.target as HTMLInputElement).blur();
+                                }
+                              }}
+                              className="w-16 h-8 bg-[#0f1014] border border-white/10 rounded-sm px-2 text-[11px] text-neutral-200 outline-none focus:border-[#c8aa6e]"
+                              aria-label="Betumeret pixelben"
+                              title="Betumeret"
+                            />
+                            <datalist id={`font-size-options-${idx}`}>
+                              {FONT_SIZE_SUGGESTIONS.map((size) => (
+                                <option key={size} value={size} />
+                              ))}
+                            </datalist>
+                            <span className="text-[10px] uppercase tracking-widest text-neutral-600 pr-1">px</span>
+                          </div>
+                          <textarea
+                            ref={(el) => { blockContentRefs.current[getBlockContentEditorKey(block, idx)] = el; }}
+                            value={block.content || ''}
+                            onChange={(e) => updateBlock(idx, { content: e.target.value })}
+                            placeholder="Ird ide a taktikat..."
+                            className="w-full bg-[#12141b] border-0 p-3 text-neutral-300 min-h-[140px] outline-none focus:ring-0"
+                            style={getEditorFontStyle(block.fontSizePx, block.fontSize)}
+                          />
+                        </div>
                       </label>
                     )}
                   </div>
