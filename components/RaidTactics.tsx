@@ -200,7 +200,7 @@ const RaidTactics: React.FC<{ data: any[] }> = ({ data }) => {
                </div>
                
                <div className="p-6 bg-[#0a0a0c] border-t border-[#222] text-center">
-                 <p className="text-[10px] text-neutral-700 uppercase tracking-[0.3em] font-bold">INSANE Tactical Archive // Updated by Admin</p>
+                 <p className="text-[10px] text-neutral-700 uppercase tracking-[0.3em] font-bold">INSANE Tactical Archive</p>
                </div>
             </div>
 
