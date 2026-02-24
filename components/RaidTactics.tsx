@@ -27,6 +27,154 @@ const RaidTactics: React.FC<{ data: any[] }> = ({ data }) => {
     return (match && match[2].length === 11) ? match[2] : null;
   };
 
+  const normalizeHref = (url: string) => {
+    const raw = String(url || '').trim();
+    if (!raw) return '';
+    return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  };
+
+  const INLINE_LINK_PATTERN = /\[([^\]]+)\]\(([^)]+)\)/g;
+
+  const renderTextChunkWithLineBreaks = (text: string, keyPrefix: string) => {
+    const nodes: React.ReactNode[] = [];
+    const lines = text.split('\n');
+    lines.forEach((line, idx) => {
+      nodes.push(<React.Fragment key={`${keyPrefix}-line-${idx}`}>{line}</React.Fragment>);
+      if (idx < lines.length - 1) {
+        nodes.push(<br key={`${keyPrefix}-br-${idx}`} />);
+      }
+    });
+    return nodes;
+  };
+
+  const renderInlineLinks = (text: string) => {
+    const content = String(text || '');
+    const nodes: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let nodeIndex = 0;
+
+    INLINE_LINK_PATTERN.lastIndex = 0;
+    let match = INLINE_LINK_PATTERN.exec(content);
+    while (match) {
+      const [fullMatch, label, rawUrl] = match;
+      const startIndex = match.index;
+
+      if (startIndex > lastIndex) {
+        nodes.push(...renderTextChunkWithLineBreaks(content.slice(lastIndex, startIndex), `text-${nodeIndex}`));
+        nodeIndex += 1;
+      }
+
+      const href = normalizeHref(rawUrl);
+      if (label.trim() && href) {
+        nodes.push(
+          <a
+            key={`link-${nodeIndex}`}
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className="text-[#c8aa6e] underline underline-offset-2 hover:text-white transition-colors break-words"
+          >
+            {label}
+          </a>
+        );
+      } else {
+        nodes.push(...renderTextChunkWithLineBreaks(fullMatch, `raw-${nodeIndex}`));
+      }
+
+      nodeIndex += 1;
+      lastIndex = startIndex + fullMatch.length;
+      match = INLINE_LINK_PATTERN.exec(content);
+    }
+
+    if (lastIndex < content.length) {
+      nodes.push(...renderTextChunkWithLineBreaks(content.slice(lastIndex), `tail-${nodeIndex}`));
+    }
+
+    return nodes;
+  };
+
+  const parseGeneralDescriptionBlocks = (raw: string) => {
+    const lines = String(raw || '').split(/\r?\n/);
+    const blocks: Array<{ type: 'text' | 'youtube'; content?: string; youtubeId?: string; sourceUrl?: string }> = [];
+    let textBuffer: string[] = [];
+
+    const flushTextBuffer = () => {
+      if (!textBuffer.length) return;
+      const text = textBuffer.join('\n').trim();
+      if (text) {
+        blocks.push({ type: 'text', content: text });
+      }
+      textBuffer = [];
+    };
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      const shortcodeMatch = trimmed.match(/^!youtube\((.+)\)$/i);
+      const youtubeUrl = shortcodeMatch ? shortcodeMatch[1].trim() : '';
+      const directYoutube = !shortcodeMatch ? getYoutubeID(trimmed) : null;
+      const shortcodeYoutube = shortcodeMatch ? getYoutubeID(youtubeUrl) : null;
+
+      if (shortcodeYoutube || (trimmed && directYoutube)) {
+        flushTextBuffer();
+        const sourceUrl = shortcodeYoutube ? normalizeHref(youtubeUrl) : normalizeHref(trimmed);
+        const youtubeId = shortcodeYoutube || directYoutube;
+        if (youtubeId) {
+          blocks.push({ type: 'youtube', youtubeId, sourceUrl });
+        }
+        continue;
+      }
+
+      textBuffer.push(line);
+    }
+
+    flushTextBuffer();
+    return blocks;
+  };
+
+  const renderGeneralDescription = (raw: string) => {
+    const blocks = parseGeneralDescriptionBlocks(raw);
+    if (!blocks.length) {
+      return (
+        <p className="text-neutral-500 font-serif italic leading-relaxed">
+          Nincs altalanos leiras ehhez a raidhez.
+        </p>
+      );
+    }
+
+    return (
+      <div className="space-y-4 relative z-10">
+        {blocks.map((block, idx) => {
+          if (block.type === 'youtube' && block.youtubeId) {
+            return (
+              <div key={`yt-${idx}`} className="border border-[#c8aa6e]/35 bg-[#080809] p-3 rounded-sm shadow-lg">
+                <div className="aspect-video border border-white/10 rounded-sm overflow-hidden">
+                  <iframe
+                    className="w-full h-full"
+                    src={`https://www.youtube.com/embed/${block.youtubeId}`}
+                    title="Raid overview video"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+                <div className="mt-2 flex items-center gap-2 text-[10px] uppercase tracking-widest text-neutral-500">
+                  <PlayCircle size={12} className="text-[#c8aa6e]" />
+                  YouTube beagyazas
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <p key={`text-${idx}`} className="text-neutral-400 font-serif leading-relaxed italic text-lg break-words">
+              {renderInlineLinks(block.content || '')}
+            </p>
+          );
+        })}
+      </div>
+    );
+  };
+
   const renderBlocks = (description: string) => {
     let blocks = [];
     try {
@@ -166,9 +314,7 @@ const RaidTactics: React.FC<{ data: any[] }> = ({ data }) => {
                   <h3 className="text-[#c8aa6e] cinzel-font font-bold mb-4 flex items-center gap-3 relative z-10 text-xl tracking-widest">
                     <BookOpen size={24} /> Általános Tudnivalók
                   </h3>
-                  <p className="text-neutral-400 font-serif leading-relaxed italic text-lg relative z-10">
-                    {currentRaid.generalDescription}
-                  </p>
+                  {renderGeneralDescription(currentRaid.generalDescription)}
                </div>
 
                <div className="p-8 lg:p-16 flex-grow bg-[#0f0f10] relative">

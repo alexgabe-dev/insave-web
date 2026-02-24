@@ -1313,6 +1313,17 @@ const TacticsEditor = ({ tactics, onSave }: any) => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [draggedBlockIdx, setDraggedBlockIdx] = useState<number | null>(null);
   const [dragOverBlockIdx, setDragOverBlockIdx] = useState<number | null>(null);
+  const [raidLinkEditor, setRaidLinkEditor] = useState<{
+    selectionStart: number;
+    selectionEnd: number;
+    selectedText: string;
+    url: string;
+  } | null>(null);
+  const [raidYoutubeEditor, setRaidYoutubeEditor] = useState<{
+    insertAt: number;
+    url: string;
+  } | null>(null);
+  const raidDescriptionRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     setLocal(JSON.parse(JSON.stringify(tactics || [])));
@@ -1320,6 +1331,8 @@ const TacticsEditor = ({ tactics, onSave }: any) => {
     setSelBoss(0);
     setBossSearch('');
     setHasUnsavedChanges(false);
+    setRaidLinkEditor(null);
+    setRaidYoutubeEditor(null);
   }, [tactics]);
 
   useEffect(() => {
@@ -1344,6 +1357,11 @@ const TacticsEditor = ({ tactics, onSave }: any) => {
       setSelBoss(Math.max(0, (raid.bosses?.length || 1) - 1));
     }
   }, [local, selRaid, selBoss]);
+
+  useEffect(() => {
+    setRaidLinkEditor(null);
+    setRaidYoutubeEditor(null);
+  }, [selRaid]);
 
   const markDirty = () => setHasUnsavedChanges(true);
   const cloneLocal = () => JSON.parse(JSON.stringify(local));
@@ -1378,6 +1396,92 @@ const TacticsEditor = ({ tactics, onSave }: any) => {
 
   const setBlocks = (blocks: any[]) => {
     setBossField('description', JSON.stringify(blocks));
+  };
+
+  const normalizeAbsoluteUrl = (url: string) => {
+    const raw = String(url || '').trim();
+    if (!raw) return '';
+    return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  };
+
+  const setRaidGeneralDescription = (value: string) => {
+    const next = cloneLocal();
+    if (!next[selRaid]) return;
+    next[selRaid].generalDescription = value;
+    setLocal(next);
+    markDirty();
+  };
+
+  const openRaidLinkEditor = () => {
+    if (!selectedRaid) return;
+    const textarea = raidDescriptionRef.current;
+    if (!textarea) return;
+
+    const currentValue = String(selectedRaid.generalDescription || '');
+    const selectionStart = textarea.selectionStart ?? 0;
+    const selectionEnd = textarea.selectionEnd ?? 0;
+    const selectedText = currentValue.slice(selectionStart, selectionEnd);
+
+    setRaidLinkEditor({
+      selectionStart,
+      selectionEnd,
+      selectedText,
+      url: ''
+    });
+    setRaidYoutubeEditor(null);
+  };
+
+  const applyRaidLink = () => {
+    if (!selectedRaid || !raidLinkEditor) return;
+    const href = normalizeAbsoluteUrl(raidLinkEditor.url);
+    const label = raidLinkEditor.selectedText.trim();
+    if (!href || !label) return;
+
+    const currentValue = String(selectedRaid.generalDescription || '');
+    const markdownLink = `[${raidLinkEditor.selectedText}](${href})`;
+    const nextValue = `${currentValue.slice(0, raidLinkEditor.selectionStart)}${markdownLink}${currentValue.slice(raidLinkEditor.selectionEnd)}`;
+    setRaidGeneralDescription(nextValue);
+
+    const cursorPosition = raidLinkEditor.selectionStart + markdownLink.length;
+    setRaidLinkEditor(null);
+    setTimeout(() => {
+      const textarea = raidDescriptionRef.current;
+      if (!textarea) return;
+      textarea.focus();
+      textarea.setSelectionRange(cursorPosition, cursorPosition);
+    }, 0);
+  };
+
+  const openRaidYoutubeEditor = () => {
+    if (!selectedRaid) return;
+    const textarea = raidDescriptionRef.current;
+    if (!textarea) return;
+    const insertAt = textarea.selectionStart ?? String(selectedRaid.generalDescription || '').length;
+    setRaidYoutubeEditor({ insertAt, url: '' });
+    setRaidLinkEditor(null);
+  };
+
+  const applyRaidYoutubeEmbed = () => {
+    if (!selectedRaid || !raidYoutubeEditor) return;
+    const href = normalizeAbsoluteUrl(raidYoutubeEditor.url);
+    if (!href || !getYoutubeId(href)) return;
+
+    const currentValue = String(selectedRaid.generalDescription || '');
+    const token = `!youtube(${href})`;
+    const needsLeadingBreak = raidYoutubeEditor.insertAt > 0 && !currentValue.slice(0, raidYoutubeEditor.insertAt).endsWith('\n');
+    const needsTrailingBreak = !currentValue.slice(raidYoutubeEditor.insertAt).startsWith('\n');
+    const inserted = `${needsLeadingBreak ? '\n' : ''}${token}${needsTrailingBreak ? '\n' : ''}`;
+    const nextValue = `${currentValue.slice(0, raidYoutubeEditor.insertAt)}${inserted}${currentValue.slice(raidYoutubeEditor.insertAt)}`;
+    setRaidGeneralDescription(nextValue);
+
+    const cursorPosition = raidYoutubeEditor.insertAt + inserted.length;
+    setRaidYoutubeEditor(null);
+    setTimeout(() => {
+      const textarea = raidDescriptionRef.current;
+      if (!textarea) return;
+      textarea.focus();
+      textarea.setSelectionRange(cursorPosition, cursorPosition);
+    }, 0);
   };
 
   const addRaid = () => {
@@ -1631,37 +1735,172 @@ const TacticsEditor = ({ tactics, onSave }: any) => {
               ))}
             </div>
             {selectedRaid && (
-              <div className="space-y-2 pt-2 border-t border-white/5">
-                <label className="space-y-1 block">
-                  <span className="text-[9px] uppercase tracking-widest text-neutral-600 font-bold">Raid neve</span>
-                  <input
-                    value={selectedRaid.name || ''}
-                    onChange={(e) => {
-                      const next = cloneLocal();
-                      next[selRaid].name = e.target.value;
-                      setLocal(next);
-                      markDirty();
-                    }}
-                    className="w-full bg-black border border-white/10 p-3 rounded text-white outline-none focus:border-[#c8aa6e]"
-                  />
-                </label>
-                <label className="space-y-1 block">
-                  <span className="text-[9px] uppercase tracking-widest text-neutral-600 font-bold">Altalanos leiras</span>
-                  <textarea
-                    value={selectedRaid.generalDescription || ''}
-                    onChange={(e) => {
-                      const next = cloneLocal();
-                      next[selRaid].generalDescription = e.target.value;
-                      setLocal(next);
-                      markDirty();
-                    }}
-                    className="w-full bg-black border border-white/10 p-3 rounded text-sm text-neutral-300 h-24 outline-none focus:border-[#c8aa6e]"
-                  />
-                </label>
+              <div className="pt-3 border-t border-white/5">
+                <div className="rounded-sm border border-white/10 bg-[linear-gradient(165deg,rgba(200,170,110,0.08),rgba(10,10,11,0.98))] p-4 space-y-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] uppercase tracking-widest font-bold text-[#c8aa6e]">Raid beallitasok</span>
+                    <span className="text-[10px] uppercase tracking-widest text-neutral-500">{(selectedRaid.bosses || []).length} boss</span>
+                  </div>
+
+                  <label className="space-y-1.5 block">
+                    <span className="text-[10px] uppercase tracking-widest text-neutral-500 font-bold">Raid neve</span>
+                    <input
+                      value={selectedRaid.name || ''}
+                      onChange={(e) => {
+                        const next = cloneLocal();
+                        next[selRaid].name = e.target.value;
+                        setLocal(next);
+                        markDirty();
+                      }}
+                      className="w-full bg-[#0d0d0f] border border-white/15 px-4 py-3 rounded-sm text-white cinzel-font text-lg outline-none focus:border-[#c8aa6e]"
+                    />
+                  </label>
+
+                  <label className="space-y-1.5 block">
+                    <span className="text-[10px] uppercase tracking-widest text-neutral-500 font-bold">Altalanos leiras</span>
+                    <textarea
+                      ref={raidDescriptionRef}
+                      value={selectedRaid.generalDescription || ''}
+                      onChange={(e) => setRaidGeneralDescription(e.target.value)}
+                      className="w-full bg-[#0d0d0f] border border-white/15 px-4 py-3 rounded-sm text-sm leading-6 text-neutral-200 font-serif min-h-[180px] outline-none focus:border-[#c8aa6e] resize-y"
+                    />
+                  </label>
+
+                  <div className="rounded-sm border border-white/10 bg-black/45 p-3 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={openRaidLinkEditor}
+                          className={`inline-flex items-center justify-center w-10 h-10 border rounded-sm transition-colors ${
+                            raidLinkEditor
+                              ? 'border-[#c8aa6e] bg-[#c8aa6e]/15 text-[#e7c98d]'
+                              : 'border-[#c8aa6e]/45 bg-[#c8aa6e]/10 text-[#e7c98d] hover:text-white hover:border-[#c8aa6e]/80'
+                          }`}
+                          aria-label="Hyperlink eszkoz"
+                          title="Hyperlink"
+                        >
+                          <Link2 size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={openRaidYoutubeEditor}
+                          className={`inline-flex items-center justify-center w-10 h-10 border rounded-sm transition-colors ${
+                            raidYoutubeEditor
+                              ? 'border-red-300 bg-red-500/15 text-red-200'
+                              : 'border-red-400/45 bg-red-500/10 text-red-300 hover:text-white hover:border-red-300/70'
+                          }`}
+                          aria-label="YouTube beagyazas eszkoz"
+                          title="YouTube"
+                        >
+                          <PlayCircle size={15} />
+                        </button>
+                      </div>
+                      <span className="text-[10px] uppercase tracking-widest text-neutral-500">
+                        Kijelol &gt; ikon &gt; mentes
+                      </span>
+                    </div>
+
+                    {raidLinkEditor && (
+                      <div className="rounded-sm border border-[#c8aa6e]/35 bg-[#101010] p-3 space-y-2">
+                        <div className="flex items-center gap-2 text-xs text-neutral-400 min-h-[18px]">
+                          <Link2 size={12} className="text-[#e7c98d]" />
+                          <span className="truncate">
+                            {raidLinkEditor.selectedText.trim() ? raidLinkEditor.selectedText : 'Nincs kijeloles'}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <input
+                            autoFocus
+                            value={raidLinkEditor.url}
+                            onChange={(e) => setRaidLinkEditor((prev) => (prev ? { ...prev, url: e.target.value } : prev))}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                applyRaidLink();
+                              }
+                              if (e.key === 'Escape') {
+                                setRaidLinkEditor(null);
+                              }
+                            }}
+                            placeholder="https://link.hu"
+                            className="flex-1 min-w-[210px] bg-black border border-white/15 p-2.5 rounded-sm text-sm text-neutral-200 outline-none focus:border-[#c8aa6e]"
+                          />
+                          <button
+                            type="button"
+                            onClick={applyRaidLink}
+                            disabled={!raidLinkEditor.selectedText.trim() || !raidLinkEditor.url.trim()}
+                            className="inline-flex items-center justify-center w-10 h-10 border border-[#c8aa6e]/45 bg-[#c8aa6e]/10 text-[#e7c98d] rounded-sm hover:text-white hover:border-[#c8aa6e]/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            aria-label="Link alkalmazasa"
+                            title="Alkalmaz"
+                          >
+                            <CheckCircle size={15} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRaidLinkEditor(null)}
+                            className="inline-flex items-center justify-center w-10 h-10 border border-white/15 text-neutral-400 rounded-sm hover:text-white hover:border-white/30 transition-colors"
+                            aria-label="Megse"
+                            title="Megse"
+                          >
+                            <X size={15} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {raidYoutubeEditor && (
+                      <div className="rounded-sm border border-red-400/35 bg-[#101010] p-3 space-y-2">
+                        <div className="flex items-center gap-2 text-xs text-neutral-400 min-h-[18px]">
+                          <PlayCircle size={12} className="text-red-300" />
+                          <span>YouTube URL</span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <input
+                            autoFocus
+                            value={raidYoutubeEditor.url}
+                            onChange={(e) => setRaidYoutubeEditor((prev) => (prev ? { ...prev, url: e.target.value } : prev))}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                applyRaidYoutubeEmbed();
+                              }
+                              if (e.key === 'Escape') {
+                                setRaidYoutubeEditor(null);
+                              }
+                            }}
+                            placeholder="https://www.youtube.com/watch?v=..."
+                            className="flex-1 min-w-[210px] bg-black border border-white/15 p-2.5 rounded-sm text-sm text-neutral-200 outline-none focus:border-red-300"
+                          />
+                          <button
+                            type="button"
+                            onClick={applyRaidYoutubeEmbed}
+                            disabled={!raidYoutubeEditor.url.trim() || !getYoutubeId(normalizeAbsoluteUrl(raidYoutubeEditor.url))}
+                            className="inline-flex items-center justify-center w-10 h-10 border border-red-400/45 bg-red-500/10 text-red-300 rounded-sm hover:text-white hover:border-red-300/70 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            aria-label="YouTube beagyazas"
+                            title="Beagyazas"
+                          >
+                            <CheckCircle size={15} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRaidYoutubeEditor(null)}
+                            className="inline-flex items-center justify-center w-10 h-10 border border-white/15 text-neutral-400 rounded-sm hover:text-white hover:border-white/30 transition-colors"
+                            aria-label="Megse"
+                            title="Megse"
+                          >
+                            <X size={15} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <button
                   type="button"
                   onClick={() => removeRaid(selRaid)}
-                  className="w-full px-3 py-2 border border-red-900/50 text-red-400 hover:bg-red-900/20 rounded-sm text-[10px] uppercase tracking-widest font-bold"
+                  className="w-full mt-3 px-3 py-2.5 border border-red-900/50 text-red-400 hover:bg-red-900/20 rounded-sm text-[10px] uppercase tracking-widest font-bold"
                 >
                   <Trash2 size={12} className="inline mr-1" /> Raid torlese
                 </button>
@@ -2387,11 +2626,12 @@ const ConsumablesEditor = ({ consumables, onSave }: any) => {
     }));
 
   useEffect(() => {
-    setLocal(normalizeConsumables(JSON.parse(JSON.stringify(consumables))));
-    setActiveRoleIdx(0);
-    setSelectedItemIdx(0);
-    setSearch('');
-    setCategoryFilter('all');
+    const normalized = normalizeConsumables(JSON.parse(JSON.stringify(consumables)));
+    setLocal(normalized);
+    setActiveRoleIdx((prev) => {
+      if (!normalized.length) return 0;
+      return Math.min(prev, normalized.length - 1);
+    });
     setHasUnsavedChanges(false);
   }, [consumables]);
 
