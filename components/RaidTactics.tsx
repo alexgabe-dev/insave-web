@@ -272,7 +272,7 @@ const RaidTactics: React.FC<{ data: any[] }> = ({ data }) => {
     <section id="tactics" className="min-h-screen py-16 bg-[#050505] relative border-b border-[#1a1a1a]">
       <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] opacity-10 pointer-events-none"></div>
 
-      <div className="container mx-auto px-6 max-w-7xl relative z-10">
+      <div className="container mx-auto px-6 max-w-[1500px] relative z-10">
         <FadeInSection>
           <div className="flex flex-col md:flex-row items-center justify-between mb-12 gap-6 border-b border-[#222] pb-8">
             <div className="flex items-center gap-5">
@@ -306,7 +306,7 @@ const RaidTactics: React.FC<{ data: any[] }> = ({ data }) => {
           </div>
 
           <div className="grid lg:grid-cols-12 gap-10 items-start">
-            <div className="lg:col-span-8 bg-[#0f0f10] border border-[#333] fantasy-border overflow-hidden min-h-[600px] flex flex-col shadow-2xl">
+            <div className="lg:col-span-9 lg:order-2 bg-[#0f0f10] border border-[#333] fantasy-border overflow-hidden min-h-[600px] flex flex-col shadow-2xl">
                <div className="p-8 bg-[#0a0a0c] border-b border-[#222] relative overflow-hidden">
                   <div className="absolute -right-10 -top-10 text-white/5 opacity-10">
                     <BookOpen size={150} strokeWidth={1} />
@@ -350,7 +350,7 @@ const RaidTactics: React.FC<{ data: any[] }> = ({ data }) => {
                </div>
             </div>
 
-            <div className="lg:col-span-4 sticky top-24">
+             <div className="lg:col-span-3 lg:order-1 sticky top-24">
               <div className="bg-[#0a0a0c] border border-[#333] p-5 mb-4 flex items-center justify-between">
                  <h5 className="text-xs font-bold cinzel-font text-neutral-400 uppercase tracking-[0.3em] flex items-center gap-3">
                    <Swords size={18} className="text-[#c8aa6e]" /> Boss Kiválasztása
