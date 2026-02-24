@@ -1,11 +1,11 @@
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { 
   Settings, Users, Trophy, FlaskConical, Save, Trash2, Plus, 
   LogOut, ChevronRight, LayoutDashboard, Swords, ListChecks, 
   Edit3, ArrowUp, ArrowDown, Sword, Image as ImageIcon, Video, 
   Monitor, ScrollText, CheckCircle, Shield, ShieldCheck, Heart, Wand2, Target, BookOpen,
-  AlertTriangle, PlayCircle, Globe, Zap, ExternalLink, X,
+  AlertTriangle, PlayCircle, Globe, Zap, ExternalLink, Link2, X,
   Star, Lock, MessageSquare, ArrowLeft, GripVertical
 } from 'lucide-react';
 import { DiscordAuthState, getDiscordAvatarUrl, getDiscordDisplayName } from '../../auth/discord';
@@ -1039,43 +1039,272 @@ const RosterEditor = ({ officers, onSave }: any) => {
 };
 
 const RulesEditor = ({ rules, onSave }: any) => {
-  const [local, setLocal] = useState([...rules]);
-  useEffect(() => { setLocal([...rules]); }, [rules]);
+  const normalizeRule = (rule: any) => ({
+    title: typeof rule?.title === 'string' ? rule.title : '',
+    description: typeof rule?.description === 'string' ? rule.description : ''
+  });
+
+  const [local, setLocal] = useState((rules || []).map(normalizeRule));
+  const [draggedRuleIdx, setDraggedRuleIdx] = useState<number | null>(null);
+  const [dragOverRuleIdx, setDragOverRuleIdx] = useState<number | null>(null);
+  const [inlineLinkEditor, setInlineLinkEditor] = useState<{
+    ruleIdx: number;
+    selectionStart: number;
+    selectionEnd: number;
+    selectedText: string;
+    url: string;
+  } | null>(null);
+  const descriptionRefs = useRef<Record<number, HTMLTextAreaElement | null>>({});
+
+  useEffect(() => {
+    setLocal((rules || []).map(normalizeRule));
+    setDraggedRuleIdx(null);
+    setDragOverRuleIdx(null);
+    setInlineLinkEditor(null);
+  }, [rules]);
 
   const update = (idx: number, field: string, val: string) => {
-    const next = [...local];
-    next[idx] = { ...next[idx], [field]: val };
-    setLocal(next);
+    setLocal((prev: any[]) => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], [field]: val };
+      return next;
+    });
+  };
+
+  const normalizeUrlForPreview = (url: string) => {
+    const raw = (url || '').trim();
+    if (!raw) return '';
+    return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  };
+
+  const addRule = () => {
+    setLocal((prev: any[]) => [...prev, { title: 'Uj Szabaly', description: '' }]);
+  };
+
+  const removeRule = (idx: number) => {
+    setLocal((prev: any[]) => prev.filter((_: any, ruleIdx: number) => ruleIdx !== idx));
+    setInlineLinkEditor(null);
+  };
+
+  const reorderRules = (fromIdx: number, toIdx: number) => {
+    if (fromIdx === toIdx) return;
+    setLocal((prev: any[]) => {
+      if (fromIdx < 0 || toIdx < 0 || fromIdx >= prev.length || toIdx >= prev.length) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+    setInlineLinkEditor(null);
+  };
+
+  const onRuleDragStart = (idx: number) => {
+    setDraggedRuleIdx(idx);
+    setDragOverRuleIdx(idx);
+  };
+
+  const resetRuleDragState = () => {
+    setDraggedRuleIdx(null);
+    setDragOverRuleIdx(null);
+  };
+
+  const onRuleDrop = (idx: number) => {
+    if (draggedRuleIdx === null) return;
+    reorderRules(draggedRuleIdx, idx);
+    resetRuleDragState();
+  };
+
+  const openInlineLinkEditor = (ruleIdx: number) => {
+    const textarea = descriptionRefs.current[ruleIdx];
+    const currentDescription = String(local[ruleIdx]?.description || '');
+    const selectionStart = textarea?.selectionStart ?? 0;
+    const selectionEnd = textarea?.selectionEnd ?? 0;
+    const selectedText = currentDescription.slice(selectionStart, selectionEnd);
+
+    setInlineLinkEditor({
+      ruleIdx,
+      selectionStart,
+      selectionEnd,
+      selectedText,
+      url: ''
+    });
+  };
+
+  const applyInlineLink = () => {
+    if (!inlineLinkEditor) return;
+    const href = normalizeUrlForPreview(inlineLinkEditor.url);
+    const label = inlineLinkEditor.selectedText;
+    if (!href || !label.trim()) return;
+
+    const markdownLink = `[${label}](${href})`;
+
+    setLocal((prev: any[]) => {
+      const next = [...prev];
+      const rule = next[inlineLinkEditor.ruleIdx];
+      if (!rule) return prev;
+
+      const currentDescription = String(rule.description || '');
+      const before = currentDescription.slice(0, inlineLinkEditor.selectionStart);
+      const after = currentDescription.slice(inlineLinkEditor.selectionEnd);
+
+      next[inlineLinkEditor.ruleIdx] = {
+        ...rule,
+        description: `${before}${markdownLink}${after}`
+      };
+
+      return next;
+    });
+
+    const focusRuleIdx = inlineLinkEditor.ruleIdx;
+    const cursorPosition = inlineLinkEditor.selectionStart + markdownLink.length;
+    setInlineLinkEditor(null);
+
+    setTimeout(() => {
+      const textarea = descriptionRefs.current[focusRuleIdx];
+      if (!textarea) return;
+      textarea.focus();
+      textarea.setSelectionRange(cursorPosition, cursorPosition);
+    }, 0);
+  };
+
+  const closeInlineLinkEditor = () => {
+    setInlineLinkEditor(null);
+  };
+
+  const handleSave = () => {
+    const cleaned = local.map((rule: any) => ({
+      title: String(rule?.title || '').trim(),
+      description: String(rule?.description || '').trim()
+    }));
+    onSave(cleaned);
   };
 
   return (
     <div className="space-y-10 animate-fade-in">
       <div className="flex items-center justify-between border-b border-white/5 pb-6">
         <div>
-          <h2 className="text-3xl font-bold cinzel-font text-white uppercase tracking-widest">Szabályzat</h2>
-          <p className="text-neutral-500 italic text-xs mt-1">A klán működési alapelvei.</p>
+          <h2 className="text-3xl font-bold cinzel-font text-white uppercase tracking-widest">Szabalyzat</h2>
+          <p className="text-neutral-500 italic text-xs mt-1">A klan mukodesi alapelvei.</p>
         </div>
         <div className="flex gap-4">
-          <button type="button" onClick={() => setLocal([...local, { title: 'Új Szabály', description: '' }])} className="p-3 bg-white/5 hover:bg-white/10 text-[#c8aa6e] rounded-full"><Plus size={18} /></button>
-          <SaveIconBtn onClick={() => onSave(local)} />
+          <button type="button" onClick={addRule} className="p-3 bg-white/5 hover:bg-white/10 text-[#c8aa6e] rounded-full"><Plus size={18} /></button>
+          <SaveIconBtn onClick={handleSave} />
         </div>
       </div>
 
+      <p className="text-[10px] uppercase tracking-widest text-neutral-600 font-bold flex items-center gap-1">
+        <GripVertical size={12} /> Szabaly sorrend: drag & drop
+      </p>
+
       <div className="grid gap-4">
-        {local.map((rule, i) => (
-          <div key={i} className="bg-[#0a0a0b] border border-white/5 p-8 flex gap-8 group hover:border-white/10 transition-all">
+        {local.map((rule: any, i: number) => (
+          <div
+            key={i}
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (dragOverRuleIdx !== i) setDragOverRuleIdx(i);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              onRuleDrop(i);
+            }}
+            className={`bg-[#0a0a0b] border p-8 flex gap-8 group transition-all ${
+              dragOverRuleIdx === i ? 'border-[#c8aa6e]/70 ring-1 ring-[#c8aa6e]/60' : 'border-white/5 hover:border-white/10'
+            } ${draggedRuleIdx === i ? 'opacity-70' : ''}`}
+          >
             <div className="flex-grow space-y-4">
               <input value={rule.title} onChange={e => update(i, 'title', e.target.value)} className="w-full bg-transparent border-b border-white/10 py-3 text-xl font-bold cinzel-font text-[#c8aa6e] outline-none focus:border-[#c8aa6e]" />
-              <textarea value={rule.description} onChange={e => update(i, 'description', e.target.value)} className="w-full bg-black/40 border border-white/5 p-4 rounded text-sm text-neutral-400 font-serif h-24 outline-none focus:border-white/20" />
+              <textarea
+                ref={el => { descriptionRefs.current[i] = el; }}
+                value={rule.description}
+                onChange={e => update(i, 'description', e.target.value)}
+                className="w-full bg-black/40 border border-white/5 p-4 rounded text-sm text-neutral-400 font-serif h-24 outline-none focus:border-white/20"
+              />
+
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[10px] uppercase tracking-widest text-neutral-600">
+                  Jelolj ki szoveget, majd nyomj a hyperlink ikonra.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => openInlineLinkEditor(i)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-[#c8aa6e]/40 text-[10px] uppercase tracking-widest font-bold text-[#c8aa6e] hover:text-white hover:border-white/30 transition-colors"
+                  aria-label="Hyperlink beszurasa"
+                >
+                  <Link2 size={11} />
+                  Hyperlink
+                </button>
+              </div>
+
+              {inlineLinkEditor?.ruleIdx === i && (
+                <div className="border border-[#c8aa6e]/30 bg-black/70 rounded p-3 space-y-2">
+                  <p className="text-[10px] uppercase tracking-widest text-neutral-500">
+                    {inlineLinkEditor.selectedText.trim()
+                      ? `Kijelolt szoveg: "${inlineLinkEditor.selectedText}"`
+                      : 'Nincs kijelolt szoveg. Jelolj ki egy szot vagy mondatot a leirasban.'}
+                  </p>
+
+                  <div className="flex flex-col md:flex-row gap-2">
+                    <input
+                      autoFocus
+                      value={inlineLinkEditor.url}
+                      onChange={(e) => {
+                        const nextUrl = e.target.value;
+                        setInlineLinkEditor((prev) => (prev ? { ...prev, url: nextUrl } : prev));
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          applyInlineLink();
+                        }
+                        if (e.key === 'Escape') {
+                          closeInlineLinkEditor();
+                        }
+                      }}
+                      placeholder="https://link.hu"
+                      className="w-full bg-black border border-white/10 p-2 rounded text-xs text-neutral-200 outline-none focus:border-[#c8aa6e]"
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={applyInlineLink}
+                        disabled={!inlineLinkEditor.selectedText.trim() || !inlineLinkEditor.url.trim()}
+                        className="px-3 py-2 border border-[#c8aa6e]/40 text-[#c8aa6e] rounded text-[10px] uppercase tracking-widest font-bold hover:text-white hover:border-white/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Alkalmaz
+                      </button>
+                      <button
+                        type="button"
+                        onClick={closeInlineLinkEditor}
+                        className="px-3 py-2 border border-white/10 text-neutral-400 rounded text-[10px] uppercase tracking-widest font-bold hover:text-white hover:border-white/30 transition-colors"
+                      >
+                        Megse
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
             </div>
-            <button type="button" onClick={() => setLocal(local.filter((_, idx) => idx !== i))} className="text-red-900 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={24} /></button>
+
+            <div className="flex flex-col items-center gap-2">
+              <div
+                draggable
+                onDragStart={() => onRuleDragStart(i)}
+                onDragEnd={resetRuleDragState}
+                className="inline-flex items-center justify-center p-2 border border-white/10 text-neutral-500 hover:text-white hover:border-white/30 cursor-move rounded transition-colors"
+                title="Szabaly sorrend mozgatasa"
+              >
+                <GripVertical size={16} />
+              </div>
+              <button type="button" onClick={() => removeRule(i)} className="text-red-900 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={24} /></button>
+            </div>
           </div>
         ))}
       </div>
     </div>
   );
 };
-
 const TacticsEditor = ({ tactics, onSave }: any) => {
   const [local, setLocal] = useState([...tactics]);
   const [selRaid, setSelRaid] = useState(0);

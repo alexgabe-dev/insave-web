@@ -1,5 +1,5 @@
 import React from 'react';
-import { Heart, MessageSquare, ShieldAlert, Users, Mic, ScrollText } from 'lucide-react';
+import { Heart, MessageSquare, ShieldAlert, Users, Mic, ScrollText, ExternalLink } from 'lucide-react';
 import FadeInSection from './FadeInSection';
 
 const ruleIcons = [
@@ -11,12 +11,92 @@ const ruleIcons = [
     <Users size={28} />,
 ];
 
+const normalizeHref = (url: string) => {
+  const raw = String(url || '').trim();
+  if (!raw) return '';
+  return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+};
+
+const normalizeLinks = (raw: any) => {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item: any) => ({
+      label: typeof item?.label === 'string' ? item.label : '',
+      url: normalizeHref(item?.url || '')
+    }))
+    .filter((item: any) => item.label && item.url);
+};
+
+const INLINE_LINK_PATTERN = /\[([^\]]+)\]\(([^)]+)\)/g;
+
+const renderTextChunkWithLineBreaks = (text: string, keyPrefix: string) => {
+  const nodes: React.ReactNode[] = [];
+  const lines = text.split('\n');
+
+  lines.forEach((line, idx) => {
+    nodes.push(<React.Fragment key={`${keyPrefix}-line-${idx}`}>{line}</React.Fragment>);
+    if (idx < lines.length - 1) {
+      nodes.push(<br key={`${keyPrefix}-br-${idx}`} />);
+    }
+  });
+
+  return nodes;
+};
+
+const renderDescriptionWithLinks = (description: string) => {
+  const text = String(description || '');
+  const nodes: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let nodeIndex = 0;
+  INLINE_LINK_PATTERN.lastIndex = 0;
+
+  let match = INLINE_LINK_PATTERN.exec(text);
+  while (match) {
+    const [fullMatch, label, rawUrl] = match;
+    const startIndex = match.index;
+
+    if (startIndex > lastIndex) {
+      nodes.push(...renderTextChunkWithLineBreaks(text.slice(lastIndex, startIndex), `text-${nodeIndex}`));
+      nodeIndex += 1;
+    }
+
+    const href = normalizeHref(rawUrl);
+    if (label.trim() && href) {
+      nodes.push(
+        <a
+          key={`link-${nodeIndex}`}
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          className="text-[#c8aa6e] underline underline-offset-2 hover:text-white transition-colors"
+        >
+          {label}
+        </a>
+      );
+      nodeIndex += 1;
+    } else {
+      nodes.push(...renderTextChunkWithLineBreaks(fullMatch, `raw-${nodeIndex}`));
+      nodeIndex += 1;
+    }
+
+    lastIndex = startIndex + fullMatch.length;
+    match = INLINE_LINK_PATTERN.exec(text);
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(...renderTextChunkWithLineBreaks(text.slice(lastIndex), `tail-${nodeIndex}`));
+  }
+
+  return nodes;
+};
+
 const RuleCard: React.FC<{ 
   icon: React.ReactNode; 
   title: string; 
   description: string;
+  links: Array<{ label: string; url: string }>;
   idx: number;
-}> = ({ icon, title, description, idx }) => (
+}> = ({ icon, title, description, links, idx }) => (
   <div className="group fantasy-border p-6 md:p-8 hover:bg-[#151515] transition-colors duration-500 relative overflow-hidden">
     {/* Background Rune/Number */}
     <div className="absolute -right-4 -bottom-8 text-[6rem] md:text-[8rem] font-black text-[#1a1a1a] cinzel-font opacity-50 pointer-events-none select-none group-hover:text-[#202020] transition-colors">
@@ -32,8 +112,24 @@ const RuleCard: React.FC<{
       <h3 className="text-lg md:text-xl font-bold mb-4 text-[#e0e0e0] cinzel-font tracking-wide uppercase">{title}</h3>
       <div className="h-px w-12 bg-[#333] group-hover:bg-[#c8aa6e]/50 mb-4 transition-colors"></div>
       <p className="text-neutral-500 text-sm leading-6 md:leading-7 font-serif">
-        {description}
+        {renderDescriptionWithLinks(description)}
       </p>
+      {links.length > 0 && (
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
+          {links.map((link, linkIdx) => (
+            <a
+              key={`${link.url}-${linkIdx}`}
+              href={link.url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 px-3 py-1.5 border border-[#c8aa6e]/30 text-[10px] uppercase tracking-widest font-bold text-[#c8aa6e] hover:text-white hover:border-white/30 transition-colors"
+            >
+              {link.label}
+              <ExternalLink size={11} />
+            </a>
+          ))}
+        </div>
+      )}
     </div>
   </div>
 );
@@ -62,6 +158,7 @@ const Rules: React.FC<{ data: any[] }> = ({ data }) => {
                 icon={ruleIcons[idx % ruleIcons.length]}
                 title={rule.title}
                 description={rule.description}
+                links={normalizeLinks(rule?.links)}
               />
             ))}
           </div>
