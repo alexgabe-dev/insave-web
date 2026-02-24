@@ -498,7 +498,7 @@ function App() {
                     Fejlesztoi ertesites
                   </p>
                   <h3 className="text-2xl sm:text-3xl md:text-4xl font-black cinzel-font text-white leading-tight">
-                    Az oldal még fejlesztás alatt áll
+                    Az oldal még fejlesztés alatt áll
                   </h3>
                 </div>
               </div>
