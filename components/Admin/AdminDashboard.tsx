@@ -629,12 +629,33 @@ const HeroEditor = ({ config, onSave }: any) => {
     setUploadError(null);
   }, [config]);
 
-  const readFileAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ''));
-    reader.onerror = () => reject(new Error('Nem sikerult beolvasni a fajlt.'));
-    reader.readAsDataURL(file);
-  });
+  const MAX_MEDIA_UPLOAD_MB = 200;
+  const uploadMediaFile = async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch('/api/media', {
+      method: 'POST',
+      body: formData
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new Error(data?.error || `Media feltoltes sikertelen (${res.status}).`);
+    }
+    if (!data?.url || typeof data.url !== 'string') {
+      throw new Error('Hibas media feltoltes valasz.');
+    }
+    return data.url as string;
+  };
+
+  const validateFileSize = (file: File) => {
+    const maxBytes = MAX_MEDIA_UPLOAD_MB * 1024 * 1024;
+    if (file.size > maxBytes) {
+      const sizeMb = (file.size / 1024 / 1024).toFixed(1);
+      setUploadError(`A fajl tul nagy (${sizeMb} MB). Maximum ${MAX_MEDIA_UPLOAD_MB} MB engedelyezett.`);
+      return false;
+    }
+    return true;
+  };
 
   const handleImageUpload = async (file?: File | null) => {
     if (!file) return;
@@ -644,8 +665,9 @@ const HeroEditor = ({ config, onSave }: any) => {
     }
     setUploadError(null);
     try {
-      const dataUrl = await readFileAsDataUrl(file);
-      setLocal(prev => ({ ...prev, bgType: 'image', bgImage: dataUrl }));
+      if (!validateFileSize(file)) return;
+      const url = await uploadMediaFile(file);
+      setLocal(prev => ({ ...prev, bgType: 'image', bgImage: url }));
       setHasUnsavedChanges(true);
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Nem sikerult beolvasni a fajlt.');
@@ -660,8 +682,9 @@ const HeroEditor = ({ config, onSave }: any) => {
     }
     setUploadError(null);
     try {
-      const dataUrl = await readFileAsDataUrl(file);
-      setLocal(prev => ({ ...prev, bgType: 'video', bgVideo: dataUrl }));
+      if (!validateFileSize(file)) return;
+      const url = await uploadMediaFile(file);
+      setLocal(prev => ({ ...prev, bgType: 'video', bgVideo: url }));
       setHasUnsavedChanges(true);
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Nem sikerult beolvasni a fajlt.');
@@ -802,7 +825,7 @@ const HeroEditor = ({ config, onSave }: any) => {
               />
             </div>
             <p className="text-[9px] text-neutral-600 uppercase tracking-widest">
-              Feltolteskor a fajl beagyazott adat URL-kent mentodik.
+              Feltolteskor a fajl a szerver /media/ mappajaba kerul, es URL mentodik. Max {MAX_MEDIA_UPLOAD_MB} MB.
             </p>
             {uploadError && (
               <p className="text-[10px] text-red-400 uppercase tracking-widest">{uploadError}</p>
