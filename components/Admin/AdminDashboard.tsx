@@ -2556,6 +2556,17 @@ const GuidesEditor = ({ guides, onSave }: any) => {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [draggedGuideIdx, setDraggedGuideIdx] = useState<number | null>(null);
+  const [dragOverGuideIdx, setDragOverGuideIdx] = useState<number | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [inlineLinkEditor, setInlineLinkEditor] = useState<{
+    guideIdx: number;
+    selectionStart: number;
+    selectionEnd: number;
+    selectedText: string;
+    url: string;
+  } | null>(null);
+  const contentRefs = useRef<Record<number, HTMLTextAreaElement | null>>({});
 
   useEffect(() => {
     setLocal(JSON.parse(JSON.stringify(guides || [])));
@@ -2563,6 +2574,10 @@ const GuidesEditor = ({ guides, onSave }: any) => {
     setSearch('');
     setCategoryFilter('all');
     setHasUnsavedChanges(false);
+    setDraggedGuideIdx(null);
+    setDragOverGuideIdx(null);
+    setInlineLinkEditor(null);
+    setUploadError(null);
   }, [guides]);
 
   useEffect(() => {
@@ -2577,6 +2592,74 @@ const GuidesEditor = ({ guides, onSave }: any) => {
 
   const markDirty = () => setHasUnsavedChanges(true);
   const today = new Date().toISOString().slice(0, 10);
+  const INLINE_LINK_PATTERN = /\[([^\]]+)\]\(([^)]+)\)/g;
+
+  const normalizeUrlForPreview = (url: string) => {
+    const raw = (url || '').trim();
+    if (!raw) return '';
+    return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  };
+
+  const renderTextChunkWithLineBreaks = (text: string, keyPrefix: string) => {
+    const nodes: React.ReactNode[] = [];
+    const lines = text.split('\n');
+
+    lines.forEach((line, idx) => {
+      nodes.push(<React.Fragment key={`${keyPrefix}-line-${idx}`}>{line}</React.Fragment>);
+      if (idx < lines.length - 1) {
+        nodes.push(<br key={`${keyPrefix}-br-${idx}`} />);
+      }
+    });
+
+    return nodes;
+  };
+
+  const renderDescriptionWithLinks = (description: string) => {
+    const text = String(description || '');
+    const nodes: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let nodeIndex = 0;
+    INLINE_LINK_PATTERN.lastIndex = 0;
+
+    let match = INLINE_LINK_PATTERN.exec(text);
+    while (match) {
+      const [fullMatch, label, rawUrl] = match;
+      const startIndex = match.index;
+
+      if (startIndex > lastIndex) {
+        nodes.push(...renderTextChunkWithLineBreaks(text.slice(lastIndex, startIndex), `text-${nodeIndex}`));
+        nodeIndex += 1;
+      }
+
+      const href = normalizeUrlForPreview(rawUrl);
+      if (label.trim() && href) {
+        nodes.push(
+          <a
+            key={`link-${nodeIndex}`}
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className="text-[#c8aa6e] underline underline-offset-2 hover:text-white transition-colors"
+          >
+            {label}
+          </a>
+        );
+        nodeIndex += 1;
+      } else {
+        nodes.push(...renderTextChunkWithLineBreaks(fullMatch, `raw-${nodeIndex}`));
+        nodeIndex += 1;
+      }
+
+      lastIndex = startIndex + fullMatch.length;
+      match = INLINE_LINK_PATTERN.exec(text);
+    }
+
+    if (lastIndex < text.length) {
+      nodes.push(...renderTextChunkWithLineBreaks(text.slice(lastIndex), `tail-${nodeIndex}`));
+    }
+
+    return nodes;
+  };
 
   const addGuide = () => {
     setLocal(prev => ([
@@ -2587,7 +2670,8 @@ const GuidesEditor = ({ guides, onSave }: any) => {
         content: '',
         date: today,
         badge: '',
-        link: ''
+        link: '',
+        image: ''
       },
       ...prev
     ]));
@@ -2602,6 +2686,41 @@ const GuidesEditor = ({ guides, onSave }: any) => {
     markDirty();
   };
 
+  const reorderGuides = (fromIdx: number, toIdx: number) => {
+    if (fromIdx === toIdx) return;
+    setLocal((prev: any[]) => {
+      if (fromIdx < 0 || toIdx < 0 || fromIdx >= prev.length || toIdx >= prev.length) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+    setSelectedIdx((prev) => {
+      if (prev === fromIdx) return toIdx;
+      if (fromIdx < toIdx && prev > fromIdx && prev <= toIdx) return prev - 1;
+      if (fromIdx > toIdx && prev >= toIdx && prev < fromIdx) return prev + 1;
+      return prev;
+    });
+    setInlineLinkEditor(null);
+    markDirty();
+  };
+
+  const onGuideDragStart = (idx: number) => {
+    setDraggedGuideIdx(idx);
+    setDragOverGuideIdx(idx);
+  };
+
+  const resetGuideDragState = () => {
+    setDraggedGuideIdx(null);
+    setDragOverGuideIdx(null);
+  };
+
+  const onGuideDrop = (idx: number) => {
+    if (draggedGuideIdx === null) return;
+    reorderGuides(draggedGuideIdx, idx);
+    resetGuideDragState();
+  };
+
   const updateGuide = (idx: number, field: string, value: any) => {
     setLocal(prev => {
       const next = JSON.parse(JSON.stringify(prev));
@@ -2610,6 +2729,113 @@ const GuidesEditor = ({ guides, onSave }: any) => {
       return next;
     });
     markDirty();
+  };
+
+  const readFileAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Nem sikerult beolvasni a fajlt.'));
+    reader.readAsDataURL(file);
+  });
+
+  const optimizeImageForStorage = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const maxSize = 1400;
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        const width = Math.max(1, Math.round(img.width * scale));
+        const height = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Nem sikerult a kep optimalizalasa.'));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/webp', 0.82));
+      };
+      img.onerror = () => reject(new Error('Nem sikerult feldolgozni a kepet.'));
+      img.src = String(reader.result || '');
+    };
+    reader.onerror = () => reject(new Error('Nem sikerult beolvasni a fajlt.'));
+    reader.readAsDataURL(file);
+  });
+
+  const handleGuideImageUpload = async (idx: number, file?: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Csak kep fajl toltheto fel.');
+      return;
+    }
+    setUploadError(null);
+    try {
+      await readFileAsDataUrl(file);
+      const dataUrl = await optimizeImageForStorage(file);
+      updateGuide(idx, 'image', dataUrl);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Nem sikerult beolvasni a fajlt.');
+    }
+  };
+
+  const openInlineLinkEditor = (guideIdx: number) => {
+    const textarea = contentRefs.current[guideIdx];
+    const currentContent = String(local[guideIdx]?.content || '');
+    const selectionStart = textarea?.selectionStart ?? 0;
+    const selectionEnd = textarea?.selectionEnd ?? 0;
+    const selectedText = currentContent.slice(selectionStart, selectionEnd);
+
+    setInlineLinkEditor({
+      guideIdx,
+      selectionStart,
+      selectionEnd,
+      selectedText,
+      url: ''
+    });
+  };
+
+  const closeInlineLinkEditor = () => {
+    setInlineLinkEditor(null);
+  };
+
+  const applyInlineLink = () => {
+    if (!inlineLinkEditor) return;
+    const href = normalizeUrlForPreview(inlineLinkEditor.url);
+    const label = inlineLinkEditor.selectedText;
+    if (!href || !label.trim()) return;
+
+    const markdownLink = `[${label}](${href})`;
+
+    setLocal((prev: any[]) => {
+      const next = [...prev];
+      const guide = next[inlineLinkEditor.guideIdx];
+      if (!guide) return prev;
+
+      const currentContent = String(guide.content || '');
+      const before = currentContent.slice(0, inlineLinkEditor.selectionStart);
+      const after = currentContent.slice(inlineLinkEditor.selectionEnd);
+
+      next[inlineLinkEditor.guideIdx] = {
+        ...guide,
+        content: `${before}${markdownLink}${after}`
+      };
+      return next;
+    });
+
+    markDirty();
+    const focusGuideIdx = inlineLinkEditor.guideIdx;
+    const cursorPosition = inlineLinkEditor.selectionStart + markdownLink.length;
+    setInlineLinkEditor(null);
+
+    setTimeout(() => {
+      const textarea = contentRefs.current[focusGuideIdx];
+      if (!textarea) return;
+      textarea.focus();
+      textarea.setSelectionRange(cursorPosition, cursorPosition);
+    }, 0);
   };
 
   const handleSave = () => {
@@ -2675,20 +2901,44 @@ const GuidesEditor = ({ guides, onSave }: any) => {
             {filteredGuides.map(({ guide, idx }: any) => {
               const active = idx === selectedIdx;
               return (
-                <button
+                <div
                   key={guide.id}
-                  type="button"
-                  onClick={() => setSelectedIdx(idx)}
-                  className={`w-full text-left p-3 border rounded-sm transition-all ${
-                    active ? 'border-[#c8aa6e] bg-[#c8aa6e]/10' : 'border-white/10 bg-black/20 hover:border-white/20'
-                  }`}
+                  draggable
+                  onDragStart={() => onGuideDragStart(idx)}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (dragOverGuideIdx !== idx) setDragOverGuideIdx(idx);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    onGuideDrop(idx);
+                  }}
+                  onDragEnd={resetGuideDragState}
+                  className={`border rounded-sm transition-all ${
+                    dragOverGuideIdx === idx
+                      ? 'border-[#c8aa6e]/70 ring-1 ring-[#c8aa6e]/60'
+                      : active
+                        ? 'border-[#c8aa6e] bg-[#c8aa6e]/10'
+                        : 'border-white/10 bg-black/20 hover:border-white/20'
+                  } ${draggedGuideIdx === idx ? 'opacity-70' : ''}`}
                 >
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <p className={`font-bold text-sm truncate ${active ? 'text-[#c8aa6e]' : 'text-white'}`}>{guide.title || 'Ures cim'}</p>
-                    {!!guide.badge && <span className="text-[8px] px-2 py-0.5 border border-red-900/40 text-red-400 uppercase tracking-widest">{guide.badge}</span>}
-                  </div>
-                  <p className="text-[10px] text-neutral-500 uppercase tracking-widest">{guide.category || 'Altalanos'}</p>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedIdx(idx)}
+                    className={`w-full text-left p-3 ${active ? 'bg-[#c8aa6e]/10' : ''}`}
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <p className={`font-bold text-sm truncate ${active ? 'text-[#c8aa6e]' : 'text-white'}`}>{guide.title || 'Ures cim'}</p>
+                      <div className="flex items-center gap-2">
+                        {!!guide.badge && <span className="text-[8px] px-2 py-0.5 border border-red-900/40 text-red-400 uppercase tracking-widest">{guide.badge}</span>}
+                        <span className="text-neutral-600" title="Huzd a sorrendhez">
+                          <GripVertical size={12} />
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-neutral-500 uppercase tracking-widest">{guide.category || 'Altalanos'}</p>
+                  </button>
+                </div>
               );
             })}
             {!filteredGuides.length && (
@@ -2697,6 +2947,9 @@ const GuidesEditor = ({ guides, onSave }: any) => {
               </div>
             )}
           </div>
+          <p className="text-[10px] uppercase tracking-widest text-neutral-600">
+            <GripVertical size={12} className="inline mr-1" /> Box sorrend: drag & drop
+          </p>
         </div>
 
         <div className="lg:col-span-8 bg-[#0a0a0b] border border-white/5 p-6">
@@ -2764,15 +3017,111 @@ const GuidesEditor = ({ guides, onSave }: any) => {
                 </label>
               </div>
 
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase tracking-widest text-neutral-500 font-bold flex items-center gap-1">
+                    <ImageIcon size={12} /> Boritokep (opcionalis)
+                  </span>
+                  {selectedGuide.image && (
+                    <button
+                      type="button"
+                      onClick={() => updateGuide(selectedIdx, 'image', '')}
+                      className="text-[10px] uppercase tracking-widest text-red-400 hover:text-red-300 transition-colors"
+                    >
+                      Kép törlése
+                    </button>
+                  )}
+                </div>
+                <label className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-white/10 text-[10px] font-bold cinzel-font uppercase tracking-widest text-neutral-400 hover:text-white hover:border-[#c8aa6e]/40 transition-all cursor-pointer rounded">
+                  <ImageIcon size={12} /> Kep Feltoltes
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={e => handleGuideImageUpload(selectedIdx, e.target.files?.[0])}
+                    className="hidden"
+                  />
+                </label>
+                {uploadError && (
+                  <p className="text-[10px] text-red-400 uppercase tracking-widest">{uploadError}</p>
+                )}
+                {selectedGuide.image && (
+                  <div className="border border-white/10 rounded overflow-hidden bg-black/30">
+                    <img src={selectedGuide.image} alt={selectedGuide.title || 'Guide kep'} className="w-full h-44 object-cover" />
+                  </div>
+                )}
+              </div>
+
               <label className="space-y-2 block">
                 <span className="text-[10px] uppercase tracking-widest text-neutral-500 font-bold flex items-center gap-1">
                   <MessageSquare size={12} /> Tartalom
                 </span>
                 <textarea
+                  ref={el => { contentRefs.current[selectedIdx] = el; }}
                   value={selectedGuide.content || ''}
                   onChange={e => updateGuide(selectedIdx, 'content', e.target.value)}
                   className="w-full bg-black border border-white/10 p-4 rounded text-sm text-neutral-300 font-serif h-40 outline-none focus:border-[#c8aa6e]"
                 />
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[10px] uppercase tracking-widest text-neutral-600">
+                    Jelolj ki szoveget, majd nyomj a hyperlink ikonra.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => openInlineLinkEditor(selectedIdx)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-[#c8aa6e]/40 text-[10px] uppercase tracking-widest font-bold text-[#c8aa6e] hover:text-white hover:border-white/30 transition-colors"
+                    aria-label="Hyperlink beszurasa"
+                  >
+                    <Link2 size={11} />
+                    Hyperlink
+                  </button>
+                </div>
+                {inlineLinkEditor?.guideIdx === selectedIdx && (
+                  <div className="border border-[#c8aa6e]/30 bg-black/70 rounded p-3 space-y-2">
+                    <p className="text-[10px] uppercase tracking-widest text-neutral-500">
+                      {inlineLinkEditor.selectedText.trim()
+                        ? `Kijelolt szoveg: "${inlineLinkEditor.selectedText}"`
+                        : 'Nincs kijelolt szoveg. Jelolj ki egy szot vagy mondatot a tartalomban.'}
+                    </p>
+                    <div className="flex flex-col md:flex-row gap-2">
+                      <input
+                        autoFocus
+                        value={inlineLinkEditor.url}
+                        onChange={(e) => {
+                          const nextUrl = e.target.value;
+                          setInlineLinkEditor((prev) => (prev ? { ...prev, url: nextUrl } : prev));
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            applyInlineLink();
+                          }
+                          if (e.key === 'Escape') {
+                            closeInlineLinkEditor();
+                          }
+                        }}
+                        placeholder="https://link.hu"
+                        className="w-full bg-black border border-white/10 p-2 rounded text-xs text-neutral-200 outline-none focus:border-[#c8aa6e]"
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={applyInlineLink}
+                          disabled={!inlineLinkEditor.selectedText.trim() || !inlineLinkEditor.url.trim()}
+                          className="px-3 py-2 border border-[#c8aa6e]/40 text-[#c8aa6e] rounded text-[10px] uppercase tracking-widest font-bold hover:text-white hover:border-white/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          Alkalmaz
+                        </button>
+                        <button
+                          type="button"
+                          onClick={closeInlineLinkEditor}
+                          className="px-3 py-2 border border-white/10 text-neutral-400 rounded text-[10px] uppercase tracking-widest font-bold hover:text-white hover:border-white/30 transition-colors"
+                        >
+                          Megse
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </label>
 
               <div className="border border-white/10 bg-black/30 rounded-sm p-4 space-y-3">
@@ -2785,7 +3134,18 @@ const GuidesEditor = ({ guides, onSave }: any) => {
                     )}
                   </div>
                   <h4 className="text-xl cinzel-font text-white mb-3">{selectedGuide.title || 'Ures cim'}</h4>
-                  <p className="text-sm text-neutral-400 font-serif leading-relaxed mb-4">{selectedGuide.content || 'Ures tartalom...'}</p>
+                  <p className="text-sm text-neutral-400 font-serif leading-relaxed mb-4">
+                    {renderDescriptionWithLinks(selectedGuide.content || 'Ures tartalom...')}
+                  </p>
+                  {selectedGuide.image && (
+                    <div className="mb-4 border border-white/10 bg-black/40 overflow-hidden rounded-sm">
+                      <img
+                        src={selectedGuide.image}
+                        alt={selectedGuide.title || 'Guide kep'}
+                        className="w-full h-44 object-cover"
+                      />
+                    </div>
+                  )}
                   <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-neutral-500 border-t border-white/10 pt-3">
                     <span>{selectedGuide.date || '-'}</span>
                     {!!selectedGuide.link && <span className="text-[#c8aa6e]">Van link</span>}

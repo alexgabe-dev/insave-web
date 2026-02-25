@@ -1,5 +1,5 @@
 import React from 'react';
-import { Scroll, Sparkles, Zap, Calendar, Tag } from 'lucide-react';
+import { Scroll, Sparkles, Zap, Calendar, Tag, X } from 'lucide-react';
 import FadeInSection from './FadeInSection';
 
 interface Guide {
@@ -10,9 +10,81 @@ interface Guide {
   date: string;
   badge?: string;
   link?: string;
+  image?: string;
 }
 
+const INLINE_LINK_PATTERN = /\[([^\]]+)\]\(([^)]+)\)/g;
+
+const normalizeHref = (url: string) => {
+  const raw = String(url || '').trim();
+  if (!raw) return '';
+  return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+};
+
+const renderTextChunkWithLineBreaks = (text: string, keyPrefix: string) => {
+  const nodes: React.ReactNode[] = [];
+  const lines = text.split('\n');
+
+  lines.forEach((line, idx) => {
+    nodes.push(<React.Fragment key={`${keyPrefix}-line-${idx}`}>{line}</React.Fragment>);
+    if (idx < lines.length - 1) {
+      nodes.push(<br key={`${keyPrefix}-br-${idx}`} />);
+    }
+  });
+
+  return nodes;
+};
+
+const renderGuideContentWithLinks = (content: string) => {
+  const text = String(content || '');
+  const nodes: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let nodeIndex = 0;
+  INLINE_LINK_PATTERN.lastIndex = 0;
+
+  let match = INLINE_LINK_PATTERN.exec(text);
+  while (match) {
+    const [fullMatch, label, rawUrl] = match;
+    const startIndex = match.index;
+
+    if (startIndex > lastIndex) {
+      nodes.push(...renderTextChunkWithLineBreaks(text.slice(lastIndex, startIndex), `text-${nodeIndex}`));
+      nodeIndex += 1;
+    }
+
+    const href = normalizeHref(rawUrl);
+    if (label.trim() && href) {
+      nodes.push(
+        <a
+          key={`link-${nodeIndex}`}
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          className="text-[#c8aa6e] underline underline-offset-2 hover:text-white transition-colors"
+        >
+          {label}
+        </a>
+      );
+      nodeIndex += 1;
+    } else {
+      nodes.push(...renderTextChunkWithLineBreaks(fullMatch, `raw-${nodeIndex}`));
+      nodeIndex += 1;
+    }
+
+    lastIndex = startIndex + fullMatch.length;
+    match = INLINE_LINK_PATTERN.exec(text);
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(...renderTextChunkWithLineBreaks(text.slice(lastIndex), `tail-${nodeIndex}`));
+  }
+
+  return nodes;
+};
+
 const Guides: React.FC<{ data: Guide[] }> = ({ data }) => {
+  const [lightboxImage, setLightboxImage] = React.useState<{ src: string; title: string } | null>(null);
+
   return (
     <section className="min-h-screen py-24 bg-[#050505] relative">
     
@@ -43,6 +115,21 @@ const Guides: React.FC<{ data: Guide[] }> = ({ data }) => {
                 <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-[#c8aa6e]/5 blur-[100px] rounded-full group-hover:bg-[#c8aa6e]/10 transition-all duration-1000"></div>
 
                 <div className="relative z-10 flex flex-col h-full">
+                  {guide.image && (
+                    <div className="mb-6 overflow-hidden border border-white/10">
+                      <button
+                        type="button"
+                        onClick={() => setLightboxImage({ src: guide.image as string, title: guide.title })}
+                        className="w-full text-left"
+                      >
+                        <img
+                          src={guide.image}
+                          alt={guide.title}
+                          className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-700"
+                        />
+                      </button>
+                    </div>
+                  )}
                   <div className="flex justify-between items-start mb-6">
                     <div className="flex items-center gap-2 text-[10px] cinzel-font font-bold text-[#c8aa6e]/60 uppercase tracking-[0.2em]">
                         <Tag size={12} /> {guide.category}
@@ -59,7 +146,7 @@ const Guides: React.FC<{ data: Guide[] }> = ({ data }) => {
                   </h3>
 
                   <div className="text-neutral-400 text-sm leading-relaxed font-serif italic border-l border-white/10 pl-4 mb-8 flex-grow">
-                      {guide.content}
+                      {renderGuideContentWithLinks(guide.content)}
                   </div>
 
                   <div className="flex items-center justify-between pt-6 border-t border-white/5 mt-auto">
@@ -90,6 +177,27 @@ const Guides: React.FC<{ data: Guide[] }> = ({ data }) => {
           </div>
         </FadeInSection>
       </div>
+
+      {lightboxImage && (
+        <div className="fixed inset-0 z-[350] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="relative w-full max-w-5xl">
+            <button
+              type="button"
+              onClick={() => setLightboxImage(null)}
+              className="absolute -top-11 right-0 inline-flex items-center gap-1 px-3 py-2 border border-white/20 bg-black/50 text-white text-[10px] uppercase tracking-widest hover:border-white/40 transition-colors"
+            >
+              <X size={12} /> Bezár
+            </button>
+            <div className="border border-white/15 bg-black/40">
+              <img
+                src={lightboxImage.src}
+                alt={lightboxImage.title}
+                className="w-full max-h-[82vh] object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 };
